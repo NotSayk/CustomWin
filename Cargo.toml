@@ -1,8 +1,8 @@
 [workspace]
 resolver = "2"
-members = ["crates/core", "crates/helper", "app/src-tauri"]
+members = ["crates/core", "crates/helper", "crates/desktop", "app/src-tauri"]
 # The Tauri app only builds on Windows; plain `cargo test` stays cross-platform.
-default-members = ["crates/core", "crates/helper"]
+default-members = ["crates/core", "crates/helper", "crates/desktop"]
 
 [workspace.package]
 version = "0.1.0"

@@ -130,3 +130,34 @@ export interface Recommendation {
   tweak_id: string;
   goals: Goal[];
 }
+
+export type Fit = "cover" | "contain";
+
+export interface ScreenConfig {
+  device: string;
+  video: string | null;
+  fit: Fit;
+}
+
+export interface WallpaperConfig {
+  enabled: boolean;
+  layout: "per_screen" | "span";
+  screens: ScreenConfig[];
+  span_video: string | null;
+  span_fit: Fit;
+  pause_when_maximized: boolean;
+  pause_on_battery: boolean;
+  start_with_windows: boolean;
+}
+
+export interface Monitor {
+  device: string;
+  rect: { left: number; top: number; right: number; bottom: number };
+  primary: boolean;
+}
+
+export interface WallpaperView {
+  config: WallpaperConfig;
+  monitors: Monitor[];
+  running: boolean;
+}

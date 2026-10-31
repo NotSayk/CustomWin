@@ -3,12 +3,17 @@
 
 mod appx;
 mod backend;
+mod desktop;
 mod nvapi;
 mod online;
 mod process;
 mod sysinfo;
 
 pub use backend::WindowsBackend;
+pub use desktop::{
+    desktop_reload, desktop_running, desktop_start, desktop_stop, monitors, pick_video,
+    set_autostart, wallpaper_config_path, Monitor,
+};
 pub use online::check_nvidia_drivers;
 pub use process::{
     create_restore_point, current_user_sid, data_dir, is_elevated, journal_path, open_url,

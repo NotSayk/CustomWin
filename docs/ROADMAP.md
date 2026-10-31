@@ -19,6 +19,12 @@ Décisions prises : usage perso (pas de signature du code) · pas de profils de 
 
 ## Phase 2 — Thèmes, fonds animés et widgets
 
+- [x] Fonds vidéo : `customwin-desktop.exe` (355 Ko), décodage GPU via Media Foundation, copie GPU vers des swap chains DirectComposition, un fond par écran ou une vidéo sur tous les écrans, cadrage « remplir » ou « vidéo entière »
+- [x] Pause automatique (moteurs de décodage arrêtés, 0 % CPU) : jeu ou appli en plein écran, appli agrandie (option), batterie (option), PC verrouillé, écran éteint
+- [x] Bureau Windows 11 avant et après 24H2, reprise après un redémarrage de l'Explorateur ou un changement d'écrans, lancement au démarrage de Windows
+- [ ] Couleur d'accent, curseurs, icônes, mode sombre selon l'heure
+- [ ] Widgets
+
 Un seul processus natif, `customwin-desktop.exe`, partage le rendu Direct3D 11 / Direct2D :
 
 - **Personnalisation** : fond d'écran (`IDesktopWallpaper`), couleur d'accent, curseurs, icônes du shell, mode sombre selon l'heure

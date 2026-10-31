@@ -2,7 +2,34 @@
 // The catalog comes from `npm run mock-catalog` (exported by the Rust helper), so it is the
 // real one; the machine and the system state are simulated.
 
-import type { Analysis, Answers, CatalogView, Operation, Recommendation, RunResult, StatesView, TweakState } from "./types";
+import type {
+  Analysis,
+  Answers,
+  CatalogView,
+  Monitor,
+  Operation,
+  Recommendation,
+  RunResult,
+  StatesView,
+  TweakState,
+  WallpaperConfig,
+} from "./types";
+
+const monitors: Monitor[] = [
+  { device: "\\\\.\\DISPLAY1", rect: { left: 0, top: 0, right: 2560, bottom: 1440 }, primary: true },
+  { device: "\\\\.\\DISPLAY2", rect: { left: 2560, top: 180, right: 4480, bottom: 1260 }, primary: false },
+];
+
+let wallpaper: WallpaperConfig = {
+  enabled: true,
+  layout: "per_screen",
+  screens: [{ device: "\\\\.\\DISPLAY1", video: "C:\\Users\\Moi\\Videos\\Wallpapers\\pluie-neon-tokyo.mp4", fit: "cover" }],
+  span_video: null,
+  span_fit: "cover",
+  pause_when_maximized: true,
+  pause_on_battery: true,
+  start_with_windows: false,
+};
 
 let catalog: CatalogView | null = null;
 const applied = new Set<string>(["explorer.show_extensions"]);
@@ -119,6 +146,18 @@ export async function invoke<T>(cmd: string, args: Record<string, unknown> = {})
     case "restart_explorer":
     case "open_nvidia_page":
       return undefined as T;
+    case "get_wallpaper":
+      return { config: wallpaper, monitors, running: wallpaper.enabled } as T;
+    case "set_wallpaper":
+      await delay(300);
+      wallpaper = args.config as WallpaperConfig;
+      return {
+        config: wallpaper,
+        monitors,
+        running: wallpaper.enabled && (wallpaper.layout === "span" ? !!wallpaper.span_video : wallpaper.screens.some((s) => s.video)),
+      } as T;
+    case "pick_video":
+      return "C:\\Users\\Moi\\Videos\\Wallpapers\\aurore-boreale-4k.mp4" as T;
     case "check_drivers":
       await delay(700);
       return [

@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "check": "svelte-check --tsconfig ./tsconfig.json",
-    "prepare-helper": "node scripts/prepare-helper.mjs",
+    "prepare-sidecars": "node scripts/prepare-sidecars.mjs",
     "mock-catalog": "cargo run -q -p customwin-helper -- catalog-json > dev-public/mock-catalog.json",
     "tauri": "tauri"
   },

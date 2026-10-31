@@ -15,7 +15,7 @@ Principe directeur : **ce qui tourne en permanence ne doit presque rien coûter*
        catalogue · moteur · journal · analyse · backend Windows
 ```
 
-Prévu (phase 2) : `customwin-desktop.exe` (fonds vidéo, widgets et mode sombre selon l'heure, dessinés en Direct3D/Direct2D).
+`customwin-desktop.exe` (phase 2) affiche le fond animé ; les widgets et le mode sombre selon l'heure s'y grefferont.
 
 ## customwin-core
 
@@ -62,6 +62,17 @@ CustomWin ne se connecte à internet que sur un clic explicite (« Vérifier les
 2. `gfwsl.geforce.com/…/AjaxDriverService.php?func=DriverManualLookup&psid=…&pfid=…` : dernier pilote Game Ready pour ce GPU.
 
 Seul le modèle du GPU est transmis (sous forme d'identifiants produit). Les requêtes passent par WinHTTP, avec le proxy et les certificats du système. Le lien « Voir sur nvidia.com » n'ouvre que des adresses `https://www.nvidia.com/`. La réinstallation d'une appli via winget utilise aussi internet, mais seulement quand l'utilisateur annule ce tweak.
+
+## Fond d'écran animé (`crates/desktop`)
+
+Processus natif séparé, lancé par l'app (ou à l'ouverture de session) et qui s'arrête de lui-même quand il n'y a rien à jouer. L'app écrit `%LOCALAPPDATA%\CustomWin\wallpaper.json` puis lui envoie `WM_APP+1` pour qu'il le relise, ou `WM_CLOSE` pour l'arrêter.
+
+- **Placement** : le message `0x052C` envoyé à `Progman` fait créer à l'Explorateur une couche entre l'image de fond et les icônes. Avant 24H2, c'est un `WorkerW` de premier niveau dont nos fenêtres deviennent les enfants. À partir de 24H2, c'est un enfant de `Progman` : nos fenêtres deviennent enfants de `Progman`, placées juste sous `SHELLDLL_DefView` (les icônes). Une fenêtre par écran ; un écran sans vidéo garde son fond normal.
+- **Rendu** : un moteur Media Foundation (`IMFMediaEngine`, mode « frame server ») par fichier vidéo, branché sur le périphérique D3D11 via `IMFDXGIDeviceManager` : le décodage passe par le GPU. À chaque rafraîchissement d'écran, la boucle demande s'il y a une nouvelle image (`OnVideoStreamTick`) et la copie de GPU à GPU dans la swap chain DirectComposition de chaque écran concerné (`TransferVideoFrame`), avec le cadrage calculé par `customwin_core::wallpaper::frame`. Une même vidéo sur deux écrans n'est décodée qu'une fois. Sans DirectComposition (Wine), repli sur des swap chains classiques liées aux fenêtres.
+- **Pause** : la règle (`wallpaper::should_play`, testée) combine la fenêtre au premier plan (hooks `EVENT_SYSTEM_FOREGROUND`, minimisation, déplacements de la fenêtre active), le verrouillage de session, l'état de l'écran et la batterie. Un écran en pause garde sa dernière image ; quand plus rien ne joue, les moteurs sont mis en pause et la boucle dort dans `WaitMessage`.
+- **Robustesse** : fenêtre de contrôle cachée de premier niveau pour recevoir `TaskbarCreated` (Explorateur relancé) et `WM_DISPLAYCHANGE` ; nouvel essai toutes les 2 s si l'Explorateur n'est pas prêt à l'ouverture de session ; une seule instance (mutex) ; l'image de fond normale est redessinée à l'arrêt.
+
+Vérifié sous Wine (écran virtuel) : décodage H.264, copie GPU, cadrage et boucle tournent ; le placement derrière les icônes et DirectComposition n'existent pas sous Wine et restent à valider sur Windows.
 
 ## Interface
 

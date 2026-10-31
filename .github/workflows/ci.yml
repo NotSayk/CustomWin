@@ -25,9 +25,9 @@ jobs:
         run: cargo fmt --all --check
       # Core + helper, including the tests that use the real registry.
       - name: Test
-        run: cargo test -p customwin-core -p customwin-helper
+        run: cargo test -p customwin-core -p customwin-helper -p customwin-desktop
       - name: Clippy
-        run: cargo clippy -p customwin-core -p customwin-helper --all-targets -- -D warnings
+        run: cargo clippy -p customwin-core -p customwin-helper -p customwin-desktop --all-targets -- -D warnings
 
   app:
     name: App (Windows installer)
@@ -51,7 +51,7 @@ jobs:
       - run: npm run check
       - name: Clippy (Tauri app)
         run: |
-          npm run prepare-helper
+          npm run prepare-sidecars
           npm run build
           cargo clippy -p customwin-app -- -D warnings
       - name: Build installer

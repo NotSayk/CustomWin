@@ -11,6 +11,8 @@ import type {
   Recommendation,
   RunResult,
   StatesView,
+  WallpaperConfig,
+  WallpaperView,
 } from "./types";
 
 type Invoke = <T>(cmd: string, args?: Record<string, unknown>) => Promise<T>;
@@ -42,4 +44,7 @@ export const api = {
   /** Goes online: only on an explicit click. */
   checkDrivers: () => call<DriverCheck[]>("check_drivers"),
   openNvidiaPage: (url: string) => call<void>("open_nvidia_page", { url }),
+  getWallpaper: () => call<WallpaperView>("get_wallpaper"),
+  setWallpaper: (config: WallpaperConfig) => call<WallpaperView>("set_wallpaper", { config }),
+  pickVideo: () => call<string | null>("pick_video"),
 };

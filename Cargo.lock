@@ -478,6 +478,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "customwin-desktop"
+version = "0.1.0"
+dependencies = [
+ "customwin-core",
+ "windows",
+ "windows-core",
+]
+
+[[package]]
 name = "customwin-helper"
 version = "0.1.0"
 dependencies = [

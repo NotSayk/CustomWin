@@ -12,6 +12,7 @@ use customwin_core::analysis::{self, Answers, Insight, Recommendation, SystemInf
 use customwin_core::drivers::DriverCheck;
 use customwin_core::engine::{self, TweakState};
 use customwin_core::journal::Journal;
+use customwin_core::wallpaper::{self, WallpaperConfig};
 use customwin_core::windows::{self as win, WindowsBackend};
 use customwin_core::{Catalog, HelperRequest, HelperResponse, OpResult, Operation};
 use serde::Serialize;
@@ -207,6 +208,91 @@ async fn open_nvidia_page(url: String) -> CmdResult<()> {
     blocking(move || win::open_url(&url).map_err(err)).await
 }
 
+#[derive(Serialize)]
+struct WallpaperView {
+    config: WallpaperConfig,
+    monitors: Vec<win::Monitor>,
+    running: bool,
+}
+
+fn desktop_exe() -> CmdResult<PathBuf> {
+    let exe = std::env::current_exe()
+        .map_err(err)?
+        .with_file_name("customwin-desktop.exe");
+    if exe.exists() {
+        Ok(exe)
+    } else {
+        Err(format!("{} is missing; reinstall CustomWin", exe.display()))
+    }
+}
+
+fn wallpaper_view(config: WallpaperConfig, running: bool) -> WallpaperView {
+    WallpaperView {
+        config,
+        monitors: win::monitors(),
+        running,
+    }
+}
+
+#[tauri::command]
+async fn get_wallpaper() -> CmdResult<WallpaperView> {
+    blocking(|| {
+        let config = WallpaperConfig::load(&win::wallpaper_config_path()).map_err(err)?;
+        Ok(wallpaper_view(config, win::desktop_running()))
+    })
+    .await
+}
+
+/// Saves the configuration and starts, reloads or stops the wallpaper process to match.
+#[tauri::command]
+async fn set_wallpaper(config: WallpaperConfig) -> CmdResult<WallpaperView> {
+    blocking(move || {
+        let videos = config
+            .screens
+            .iter()
+            .filter_map(|s| s.video.as_ref())
+            .chain(config.span_video.as_ref());
+        for v in videos {
+            if !wallpaper::is_video(v) || !v.is_file() {
+                return Err(format!("not a readable video: {}", v.display()));
+            }
+        }
+        config.save(&win::wallpaper_config_path()).map_err(err)?;
+
+        let play = config.enabled && config.has_video();
+        let exe = desktop_exe()?;
+        win::set_autostart((play && config.start_with_windows).then_some(exe.as_path()))
+            .map_err(err)?;
+        if !play {
+            win::desktop_stop();
+        } else if !win::desktop_reload() {
+            win::desktop_start(&exe).map_err(err)?;
+        }
+        // Give the process a moment to show up (or go away) before reporting.
+        let mut running = win::desktop_running();
+        for _ in 0..15 {
+            if running == play {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(100));
+            running = win::desktop_running();
+        }
+        Ok(wallpaper_view(config, running))
+    })
+    .await
+}
+
+#[tauri::command]
+async fn pick_video(window: tauri::WebviewWindow) -> CmdResult<Option<String>> {
+    let owner = window.hwnd().map_or(0, |h| h.0 as isize);
+    blocking(move || {
+        Ok(win::pick_video(owner, "Choisir une vidéo")
+            .map_err(err)?
+            .map(|p| p.display().to_string()))
+    })
+    .await
+}
+
 #[tauri::command]
 async fn restart_explorer() -> CmdResult<()> {
     blocking(|| win::restart_explorer().map_err(err)).await
@@ -229,6 +315,9 @@ fn main() {
             run_operation,
             check_drivers,
             open_nvidia_page,
+            get_wallpaper,
+            set_wallpaper,
+            pick_video,
             restart_explorer
         ])
         .run(tauri::generate_context!())
