@@ -24,6 +24,8 @@ Prévu ensuite : couleur d'accent, curseurs, mode sombre selon l'heure, widgets 
 
 ## Installer l'app
 
+Télécharge l'installeur `CustomWin_…_x64-setup.exe` sur la page [Releases](https://github.com/NotSayk/CustomWin/releases).
+
 L'installeur n'est pas signé (inutile pour un usage perso). Au premier lancement, Windows affiche « Windows a protégé votre ordinateur » : clique sur **Informations complémentaires**, puis **Exécuter quand même**. Certains antivirus peuvent aussi se méfier d'un outil non signé qui modifie le registre.
 
 ## Structure
@@ -76,6 +78,15 @@ customwin-desktop --windowed
 ```
 
 En cas de souci, le journal `%LOCALAPPDATA%\CustomWin\desktop.log` indique quelle étape a échoué.
+
+## Publier une version
+
+1. Mettre le même numéro dans `Cargo.toml` (`workspace.package`), `app/package.json` et `app/src-tauri/tauri.conf.json`.
+2. Pousser un tag correspondant : la CI construit l'installeur sur Windows et crée la Release.
+
+```bash
+git tag v0.1.0 && git push origin v0.1.0
+```
 
 ## Ajouter un tweak
 
