@@ -25,9 +25,9 @@ jobs:
         run: cargo fmt --all --check
       # Core + helper, including the tests that use the real registry.
       - name: Test
-        run: cargo test -p customwin-core -p customwin-helper -p customwin-desktop
+        run: cargo test -p customwin-core -p customwin-helper -p customwin-desktop -p customwin-taskbar
       - name: Clippy
-        run: cargo clippy -p customwin-core -p customwin-helper -p customwin-desktop --all-targets -- -D warnings
+        run: cargo clippy -p customwin-core -p customwin-helper -p customwin-desktop -p customwin-taskbar --all-targets -- -D warnings
 
   app:
     name: App (Windows installer)

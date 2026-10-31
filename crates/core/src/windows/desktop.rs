@@ -1,5 +1,5 @@
-//! What the app needs to drive the animated wallpaper: screens, a video picker, the
-//! `customwin-desktop.exe` process, and starting it with Windows.
+//! What the app needs to drive the animated wallpaper and the widgets: screens, a video
+//! picker, the `customwin-desktop.exe` process, and starting it with Windows.
 
 use std::os::windows::process::CommandExt;
 use std::path::{Path, PathBuf};
@@ -33,6 +33,8 @@ pub struct Monitor {
     pub device: String,
     /// Physical pixels (the caller must be per-monitor DPI aware to get them).
     pub rect: Rect,
+    /// `rect` minus the taskbar and other docked bars.
+    pub work: Rect,
     pub primary: bool,
 }
 
@@ -47,17 +49,18 @@ pub fn monitors() -> Vec<Monitor> {
         let mut info = MONITORINFOEXW::default();
         info.monitorInfo.cbSize = size_of::<MONITORINFOEXW>() as u32;
         if unsafe { GetMonitorInfoW(h, &mut info.monitorInfo) }.as_bool() {
-            let r = info.monitorInfo.rcMonitor;
+            let rect = |r: RECT| Rect {
+                left: r.left,
+                top: r.top,
+                right: r.right,
+                bottom: r.bottom,
+            };
             out.push(Monitor {
                 device: String::from_utf16_lossy(&info.szDevice)
                     .trim_end_matches('\0')
                     .to_string(),
-                rect: Rect {
-                    left: r.left,
-                    top: r.top,
-                    right: r.right,
-                    bottom: r.bottom,
-                },
+                rect: rect(info.monitorInfo.rcMonitor),
+                work: rect(info.monitorInfo.rcWork),
                 primary: info.monitorInfo.dwFlags & MONITORINFOF_PRIMARY != 0,
             });
         }
@@ -178,4 +181,8 @@ pub fn set_autostart(exe: Option<&Path>) -> Result<(), Error> {
 
 pub fn wallpaper_config_path() -> PathBuf {
     super::data_dir().join("wallpaper.json")
+}
+
+pub fn widgets_config_path() -> PathBuf {
+    super::data_dir().join("widgets.json")
 }

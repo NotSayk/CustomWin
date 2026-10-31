@@ -150,9 +150,18 @@ export interface WallpaperConfig {
   start_with_windows: boolean;
 }
 
+export interface Rect {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+}
+
 export interface Monitor {
   device: string;
-  rect: { left: number; top: number; right: number; bottom: number };
+  rect: Rect;
+  /** `rect` minus the taskbar. */
+  work: Rect;
   primary: boolean;
 }
 
@@ -160,4 +169,53 @@ export interface WallpaperView {
   config: WallpaperConfig;
   monitors: Monitor[];
   running: boolean;
+}
+
+export type WidgetKind = "clock" | "system" | "media";
+export type Corner = "top_left" | "top_right" | "bottom_left" | "bottom_right";
+
+export interface Widget {
+  kind: WidgetKind;
+  enabled: boolean;
+  /** `null`: the main screen. */
+  device: string | null;
+  corner: Corner;
+}
+
+export interface WidgetsConfig {
+  widgets: Widget[];
+  transparent_taskbar: boolean;
+}
+
+export interface WidgetsView {
+  config: WidgetsConfig;
+  monitors: Monitor[];
+  running: boolean;
+}
+
+export interface ThemeState {
+  apps_light: boolean;
+  system_light: boolean;
+  transparency: boolean;
+  /** 0xRRGGBB */
+  accent: number;
+  auto_accent: boolean;
+  accent_on_taskbar: boolean;
+  accent_on_title_bars: boolean;
+}
+
+export interface ThemeView {
+  state: ThemeState;
+  accents: number[];
+}
+
+export interface ThemeFile {
+  path: string;
+  name: string;
+  wallpaper: string | null;
+  accent: number | null;
+  auto_accent: boolean;
+  apps_light: boolean | null;
+  system_light: boolean | null;
+  thumbnail: string | null;
 }

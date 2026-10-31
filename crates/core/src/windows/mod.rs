@@ -8,11 +8,12 @@ mod nvapi;
 mod online;
 mod process;
 mod sysinfo;
+mod theme;
 
 pub use backend::WindowsBackend;
 pub use desktop::{
     desktop_reload, desktop_running, desktop_start, desktop_stop, monitors, pick_video,
-    set_autostart, wallpaper_config_path, Monitor,
+    set_autostart, wallpaper_config_path, widgets_config_path, Monitor,
 };
 pub use online::check_nvidia_drivers;
 pub use process::{
@@ -20,6 +21,7 @@ pub use process::{
     restart_explorer, run_elevated,
 };
 pub use sysinfo::collect_system_info;
+pub use theme::{apply_windows_theme, set_theme_state, theme_state, windows_themes};
 
 use crate::Error;
 

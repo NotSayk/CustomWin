@@ -11,8 +11,13 @@ import type {
   Recommendation,
   RunResult,
   StatesView,
+  ThemeFile,
+  ThemeState,
+  ThemeView,
   WallpaperConfig,
   WallpaperView,
+  WidgetsConfig,
+  WidgetsView,
 } from "./types";
 
 type Invoke = <T>(cmd: string, args?: Record<string, unknown>) => Promise<T>;
@@ -47,4 +52,10 @@ export const api = {
   getWallpaper: () => call<WallpaperView>("get_wallpaper"),
   setWallpaper: (config: WallpaperConfig) => call<WallpaperView>("set_wallpaper", { config }),
   pickVideo: () => call<string | null>("pick_video"),
+  getWidgets: () => call<WidgetsView>("get_widgets"),
+  setWidgets: (config: WidgetsConfig) => call<WidgetsView>("set_widgets", { config }),
+  getTheme: () => call<ThemeView>("get_theme"),
+  setTheme: (state: ThemeState) => call<ThemeState>("set_theme", { state }),
+  listWindowsThemes: () => call<ThemeFile[]>("list_windows_themes"),
+  applyWindowsTheme: (path: string) => call<ThemeState>("apply_windows_theme", { path }),
 };

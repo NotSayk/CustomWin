@@ -22,8 +22,11 @@ Décisions prises : usage perso (pas de signature du code) · pas de profils de 
 - [x] Fonds vidéo : `customwin-desktop.exe` (355 Ko), décodage GPU via Media Foundation, copie GPU vers des swap chains DirectComposition, un fond par écran ou une vidéo sur tous les écrans, cadrage « remplir » ou « vidéo entière »
 - [x] Pause automatique (moteurs de décodage arrêtés, 0 % CPU) : jeu ou appli en plein écran, appli agrandie (option), batterie (option), PC verrouillé, écran éteint
 - [x] Bureau Windows 11 avant et après 24H2, reprise après un redémarrage de l'Explorateur ou un changement d'écrans, lancement au démarrage de Windows
-- [ ] Couleur d'accent, curseurs, icônes, mode sombre selon l'heure
-- [ ] Widgets
+- [x] Thème Windows : mode clair/sombre (applis et Windows), couleur d'accent (palette de Paramètres ou automatique), transparence, accent sur Démarrer/barre des tâches et barres de titre ; thèmes `.theme` installés appliqués avec leur fond d'écran
+- [x] Widgets sur le bureau, derrière les icônes (Direct2D) : horloge, processeur et mémoire, musique en cours (SMTC) ; écran et coin au choix ; en pause quand une appli les couvre
+- [x] Barre des tâches transparente (Windows 11 22H2+) : extension XAML Diagnostics chargée dans l'Explorateur, rien d'écrit sur le disque
+- [ ] Curseurs, icônes, mode sombre selon l'heure
+- [ ] Widgets : météo (Open-Meteo, sans clé API), raccourcis, contrôles de lecture, barre fine (AppBar), format de skin ouvert
 
 Un seul processus natif, `customwin-desktop.exe`, partage le rendu Direct3D 11 / Direct2D :
 

@@ -109,6 +109,53 @@ impl Gpu {
         self.dcomp.is_none()
     }
 
+    pub fn dxgi_device(&self) -> Result<IDXGIDevice> {
+        self.device.cast()
+    }
+
+    /// A swap chain with per-pixel transparency shown in `hwnd`, for the widgets. Needs
+    /// DirectComposition (`None` without it).
+    pub fn transparent_chain(
+        &self,
+        hwnd: HWND,
+        width: i32,
+        height: i32,
+    ) -> Result<Option<TransparentChain>> {
+        let Some(dcomp) = &self.dcomp else {
+            return Ok(None);
+        };
+        unsafe {
+            let desc = DXGI_SWAP_CHAIN_DESC1 {
+                Width: width.max(1) as u32,
+                Height: height.max(1) as u32,
+                Format: DXGI_FORMAT_B8G8R8A8_UNORM,
+                SampleDesc: DXGI_SAMPLE_DESC {
+                    Count: 1,
+                    Quality: 0,
+                },
+                BufferUsage: DXGI_USAGE_RENDER_TARGET_OUTPUT,
+                BufferCount: 2,
+                Scaling: DXGI_SCALING_STRETCH,
+                SwapEffect: DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL,
+                AlphaMode: DXGI_ALPHA_MODE_PREMULTIPLIED,
+                ..Default::default()
+            };
+            let swap = self
+                .factory
+                .CreateSwapChainForComposition(&self.device, &desc, None)
+                .map_err(step("CreateSwapChainForComposition (widget)"))?;
+            let target = dcomp.CreateTargetForHwnd(hwnd, true)?;
+            let visual = dcomp.CreateVisual()?;
+            visual.SetContent(&swap)?;
+            target.SetRoot(&visual)?;
+            dcomp.Commit()?;
+            Ok(Some(TransparentChain {
+                swap,
+                _composition: (target, visual),
+            }))
+        }
+    }
+
     /// Blocks until the next vertical blank of the main display (~16 ms at 60 Hz).
     pub fn wait_vblank(&self) {
         match &self.output {
@@ -261,6 +308,11 @@ impl Drop for Video {
             let _ = unsafe { engine.Shutdown() };
         }
     }
+}
+
+pub struct TransparentChain {
+    pub swap: IDXGISwapChain1,
+    _composition: (IDCompositionTarget, IDCompositionVisual),
 }
 
 /// A DirectComposition swap chain shown in one window.

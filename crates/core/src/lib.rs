@@ -11,7 +11,9 @@ pub mod drivers;
 pub mod engine;
 pub mod journal;
 pub mod model;
+pub mod theme;
 pub mod wallpaper;
+pub mod widgets;
 #[cfg(windows)]
 pub mod windows;
 

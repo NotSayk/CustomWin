@@ -15,7 +15,7 @@ Principe directeur : **ce qui tourne en permanence ne doit presque rien coûter*
        catalogue · moteur · journal · analyse · backend Windows
 ```
 
-`customwin-desktop.exe` (phase 2) affiche le fond animé ; les widgets et le mode sombre selon l'heure s'y grefferont.
+`customwin-desktop.exe` (phase 2) affiche le fond animé et les widgets, et pilote la barre des tâches transparente ; le mode sombre selon l'heure s'y greffera.
 
 ## customwin-core
 
@@ -25,6 +25,8 @@ Principe directeur : **ce qui tourne en permanence ne doit presque rien coûter*
 | `catalog` | Catalogue TOML intégré au binaire, validé au chargement |
 | `engine` | `state` / `apply` / `revert` / `run` |
 | `journal` | État d'origine de chaque réglage modifié, écrit de façon atomique |
+| `theme` | Mode, couleur d'accent et sa palette de 8 teintes, lecture des fichiers `.theme`. Code pur |
+| `widgets` | Configuration des widgets et de la barre transparente, empilement dans un coin de l'écran, charge processeur. Code pur |
 | `analysis` | Modèle `SystemInfo`, constats (`insights`), recommandations (`recommend`). Code pur, testé sur tout OS |
 | `drivers` | Lecture des réponses NVIDIA (catalogue des GPU, dernier pilote) et comparaison de versions. Code pur |
 | `backend` | Trait `SystemBackend` et `MockBackend` (en mémoire, insensible à la casse comme Windows) |
@@ -74,6 +76,27 @@ Processus natif séparé, lancé par l'app (ou à l'ouverture de session) et qui
 - **Robustesse** : fenêtre de contrôle cachée de premier niveau pour recevoir `TaskbarCreated` (Explorateur relancé) et `WM_DISPLAYCHANGE` ; nouvel essai toutes les 2 s si l'Explorateur n'est pas prêt à l'ouverture de session ; une seule instance (mutex) ; l'image de fond normale est redessinée à l'arrêt.
 
 Vérifié sous Wine (écran virtuel) : décodage H.264, copie GPU, cadrage et boucle tournent ; le placement derrière les icônes et DirectComposition n'existent pas sous Wine et restent à valider sur Windows.
+
+## Thème Windows
+
+Ce sont les valeurs que Paramètres › Personnalisation écrit (`Themes\Personalize`, `DWM`, `Explorer\Accent`, `Control Panel\Desktop`), annoncées par `WM_SETTINGCHANGE "ImmersiveColorSet"`. Ce sont des préférences et non des tweaks : l'état affiché est toujours relu dans Windows, il n'y a rien à journaliser. La palette de l'accent (`AccentPalette`) n'est réécrite que si l'accent change, pour garder les teintes ajustées par Windows. Un thème `.theme` (ceux de `%SystemRoot%\Resources\Themes` et de l'utilisateur) applique son fond d'écran, son accent et ses modes ; ses sons et curseurs sont ignorés.
+
+## Widgets (`crates/desktop`)
+
+Même processus que le fond animé, qui tourne dès qu'il y a une vidéo, un widget ou la barre transparente, et revient à l'ouverture de session pour ces deux derniers. Réglages dans `%LOCALAPPDATA%\CustomWin\widgets.json`.
+
+- **Placement** : une petite fenêtre par widget dans la même couche que les vidéos, créée après elles (donc au-dessus de la vidéo, sous les icônes). Elle ne prend aucun clic et ne recouvre jamais une fenêtre.
+- **Rendu** : Direct2D et DirectWrite sur le périphérique D3D11 du fond animé, dans une swap chain DirectComposition à alpha prémultiplié, à la résolution de l'écran (DPI par écran).
+- **Coût** : une minuterie d'une seconde lit l'heure, la charge (`GetSystemTimes`, `GlobalMemoryStatusEx`) et la musique (`GlobalSystemMediaTransportControlsSessionManager`) ; un widget n'est redessiné que si son texte change. Mesuré en release, sans vidéo : 0,14 s de processeur en 30 s avec les trois widgets visibles (moins de 0,5 % d'un cœur), environ 55 Mo de mémoire privée. La minuterie s'arrête quand aucun widget n'est visible (appli agrandie ou plein écran sur leur écran, PC verrouillé, écran éteint).
+
+## Barre des tâches transparente (`crates/taskbar`)
+
+Depuis Windows 11 22H2 la barre des tâches est un îlot XAML qui peint son propre fond acrylique : `SetWindowCompositionAttribute` n'a plus d'effet. `customwin-desktop` appelle donc `InitializeXamlDiagnosticsEx` (exporté par `Windows.UI.Xaml.dll`, l'API documentée derrière l'arbre visuel en direct de Visual Studio) pour charger `customwin_taskbar.dll` dans l'Explorateur.
+
+- La DLL reçoit `IXamlDiagnostics` et s'abonne aux changements de l'arbre visuel (`IVisualTreeService::AdviseVisualTreeChange`, interfaces de `xamlOM.h` déclarées à la main). Elle repère les rectangles `BackgroundFill` et `BackgroundStroke` dont un ancêtre est un contrôle `Taskbar.*`, et met leur opacité à 0 (`IUIElement::put_Opacity`). Remettre l'opacité d'origine rend l'apparence normale.
+- Les rappels arrivent sur le fil XAML propriétaire de l'élément. La DLL y crée une fenêtre message-only (`CustomWinTaskbarHook`) ; `customwin-desktop` lui envoie `WM_APP+2` pour activer ou désactiver l'effet, et le fait à son arrêt.
+- Rien n'est écrit sur le disque ni dans le registre : redémarrer l'Explorateur annule tout, et `customwin-desktop` recharge la DLL quand il reçoit `TaskbarCreated`. La DLL est copiée dans `%LOCALAPPDATA%\CustomWin` avec la version dans son nom, pour que l'Explorateur ne verrouille jamais le fichier installé. Elle n'est chargée qu'une fois par processus Explorateur.
+- Le code tourne dans l'Explorateur et le profil release s'arrête sur panique : la DLL n'utilise ni `unwrap` ni `RefCell::borrow` bloquant.
 
 ## Interface
 

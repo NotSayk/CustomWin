@@ -7,9 +7,11 @@ Optimise et personnalise Windows 11 **en un clic, et de façon réversible**.
 - **Tweaks** : télémétrie, pubs, Widgets, menu contextuel classique, barre des tâches, animations, Game DVR, HAGS, **applis préinstallées**, **pilote NVIDIA** (faible latence, performances maximales), **cartes réseau** (Energy-Efficient Ethernet, mise hors tension)… avec des **profils** (Minimal, Gaming, Confidentialité) et un bouton **Tout annuler**.
 - **Pilote NVIDIA à jour ?** Vérification en ligne sur demande, auprès de NVIDIA uniquement.
 - **Fond d'écran animé** : une vidéo (MP4, MKV, WebM…) derrière les icônes, une par écran ou une seule sur tous les écrans. Décodée par la carte graphique, en pause automatique (0 % CPU) pendant un jeu en plein écran, une appli agrandie, sur batterie ou PC verrouillé. Processus natif de 355 Ko, sans navigateur embarqué.
+- **Thème Windows** : mode clair ou sombre (applis et Windows séparément), couleur d'accent, transparence, et les thèmes installés (Éclat, Lever de soleil…) appliqués en un clic avec leur fond d'écran.
+- **Widgets** : horloge, processeur et mémoire, musique en cours, posés sur le bureau derrière les icônes, en pause dès qu'une appli les cache. Et une **barre des tâches transparente** sur Windows 11, sans rien modifier sur le disque.
 - Chaque tweak indique son **niveau de risque** et ce qu'on sait réellement de son effet (« gain mesuré », « gain variable » ou simplement fonctionnel). Les « optimisations » placebo qui circulent sur internet sont volontairement absentes.
 
-Prévu ensuite : couleur d'accent, curseurs, mode sombre selon l'heure, widgets de bureau ultra-légers. Voir [la feuille de route](docs/ROADMAP.md).
+Prévu ensuite : curseurs, icônes, mode sombre selon l'heure, météo, format de skin ouvert pour les widgets. Voir [la feuille de route](docs/ROADMAP.md).
 
 > État : **phase 1 terminée** (moteur de tweaks, analyse, interface). Pas encore de version publiée.
 
@@ -34,7 +36,8 @@ L'installeur n'est pas signé (inutile pour un usage perso). Au premier lancemen
 |---|---|
 | `crates/core` | Moteur de tweaks, catalogue (`catalog/*.toml`), journal, analyse, backend Windows |
 | `crates/helper` | `customwin-helper.exe` : exécutant élevé, aussi utilisable en ligne de commande |
-| `crates/desktop` | `customwin-desktop.exe` : fond d'écran animé (Media Foundation, Direct3D 11, DirectComposition) |
+| `crates/desktop` | `customwin-desktop.exe` : fond d'écran animé (Media Foundation, Direct3D 11, DirectComposition), widgets (Direct2D) |
+| `crates/taskbar` | `customwin_taskbar.dll` : extension XAML chargée dans l'Explorateur pour la barre des tâches transparente |
 | `app` | Interface Tauri 2 + Svelte 5 |
 
 Détails : [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).

@@ -33,7 +33,7 @@ jobs:
           }
 
       - name: Test
-        run: cargo test -p customwin-core -p customwin-helper -p customwin-desktop
+        run: cargo test -p customwin-core -p customwin-helper -p customwin-desktop -p customwin-taskbar
 
       - name: Build installer
         working-directory: app

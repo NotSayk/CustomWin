@@ -1,8 +1,9 @@
-//! `customwin-desktop.exe` — the animated wallpaper.
+//! `customwin-desktop.exe` — the animated wallpaper, the desktop widgets and the
+//! transparent taskbar.
 //!
-//! Started by the CustomWin app (or at sign-in), reads
-//! `%LOCALAPPDATA%\CustomWin\wallpaper.json`, and exits on its own when there is
-//! nothing to play. `--windowed` shows the first wallpaper in a normal window instead of
+//! Started by the CustomWin app (or at sign-in), reads `wallpaper.json` and
+//! `widgets.json` in `%LOCALAPPDATA%\CustomWin`, and exits on its own when there is
+//! nothing to do. `--windowed` shows the first wallpaper in a normal window instead of
 //! the desktop, to check video decoding on its own. Diagnostics go to `desktop.log`.
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
@@ -16,7 +17,11 @@ mod render;
 #[cfg(windows)]
 mod shell;
 #[cfg(windows)]
+mod taskbar;
+#[cfg(windows)]
 mod watch;
+#[cfg(windows)]
+mod widgets;
 
 #[cfg(windows)]
 fn main() {

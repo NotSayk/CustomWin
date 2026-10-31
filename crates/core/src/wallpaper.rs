@@ -83,30 +83,40 @@ impl Default for WallpaperConfig {
     }
 }
 
+/// Reads a JSON settings file: missing → defaults, corrupt → error (not silently reset).
+pub(crate) fn load_json<T: Default + serde::de::DeserializeOwned>(path: &Path) -> Result<T, Error> {
+    match std::fs::read(path) {
+        // Editors on Windows (and PowerShell 5.1) like to prepend a UTF-8 BOM.
+        Ok(b) => serde_json::from_slice(b.strip_prefix(b"\xEF\xBB\xBF").unwrap_or(&b))
+            .map_err(|e| Error::Invalid(format!("{}: {e}", path.display()))),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(T::default()),
+        Err(e) => Err(Error::System(format!("{}: {e}", path.display()))),
+    }
+}
+
+/// Writes a JSON settings file atomically (temporary file, then rename).
+pub(crate) fn save_json<T: Serialize>(value: &T, path: &Path) -> Result<(), Error> {
+    let io = |e: std::io::Error| Error::System(format!("{}: {e}", path.display()));
+    if let Some(dir) = path.parent() {
+        std::fs::create_dir_all(dir).map_err(io)?;
+    }
+    let tmp = path.with_extension("json.tmp");
+    std::fs::write(
+        &tmp,
+        serde_json::to_vec_pretty(value).map_err(|e| Error::Invalid(e.to_string()))?,
+    )
+    .map_err(io)?;
+    std::fs::rename(&tmp, path).map_err(io)
+}
+
 impl WallpaperConfig {
     /// Missing file → defaults. A corrupt file is an error rather than silently reset.
     pub fn load(path: &Path) -> Result<Self, Error> {
-        match std::fs::read(path) {
-            // Editors on Windows (and PowerShell 5.1) like to prepend a UTF-8 BOM.
-            Ok(b) => serde_json::from_slice(b.strip_prefix(b"\xEF\xBB\xBF").unwrap_or(&b))
-                .map_err(|e| Error::Invalid(format!("{}: {e}", path.display()))),
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(Self::default()),
-            Err(e) => Err(Error::System(format!("{}: {e}", path.display()))),
-        }
+        load_json(path)
     }
 
     pub fn save(&self, path: &Path) -> Result<(), Error> {
-        let io = |e: std::io::Error| Error::System(format!("{}: {e}", path.display()));
-        if let Some(dir) = path.parent() {
-            std::fs::create_dir_all(dir).map_err(io)?;
-        }
-        let tmp = path.with_extension("json.tmp");
-        std::fs::write(
-            &tmp,
-            serde_json::to_vec_pretty(self).map_err(|e| Error::Invalid(e.to_string()))?,
-        )
-        .map_err(io)?;
-        std::fs::rename(&tmp, path).map_err(io)
+        save_json(self, path)
     }
 
     /// Every video path in the configuration, whatever the layout.

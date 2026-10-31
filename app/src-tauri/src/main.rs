@@ -12,7 +12,9 @@ use customwin_core::analysis::{self, Answers, Insight, Recommendation, SystemInf
 use customwin_core::drivers::DriverCheck;
 use customwin_core::engine::{self, TweakState};
 use customwin_core::journal::Journal;
+use customwin_core::theme::{self, ThemeFile, ThemeState};
 use customwin_core::wallpaper::{self, WallpaperConfig};
+use customwin_core::widgets::WidgetsConfig;
 use customwin_core::windows::{self as win, WindowsBackend};
 use customwin_core::{Catalog, HelperRequest, HelperResponse, OpResult, Operation};
 use serde::Serialize;
@@ -243,6 +245,35 @@ async fn get_wallpaper() -> CmdResult<WallpaperView> {
     .await
 }
 
+/// Starts, reloads or stops `customwin-desktop.exe` to match both saved configurations,
+/// and whether it starts with Windows. Returns whether it runs.
+fn sync_desktop() -> CmdResult<bool> {
+    let wallpaper = WallpaperConfig::load(&win::wallpaper_config_path()).unwrap_or_default();
+    let widgets = WidgetsConfig::load(&win::widgets_config_path()).unwrap_or_default();
+    let play = wallpaper.enabled && wallpaper.has_video();
+    // Widgets and the transparent taskbar are meant to stay: they always come back at
+    // sign-in. The video only does if asked.
+    let run = play || widgets.active();
+    let exe = desktop_exe()?;
+    let autostart = (play && wallpaper.start_with_windows) || widgets.active();
+    win::set_autostart(autostart.then_some(exe.as_path())).map_err(err)?;
+    if !run {
+        win::desktop_stop();
+    } else if !win::desktop_reload() {
+        win::desktop_start(&exe).map_err(err)?;
+    }
+    // Give the process a moment to show up (or go away) before reporting.
+    let mut running = win::desktop_running();
+    for _ in 0..15 {
+        if running == run {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(100));
+        running = win::desktop_running();
+    }
+    Ok(running)
+}
+
 /// Saves the configuration and starts, reloads or stops the wallpaper process to match.
 #[tauri::command]
 async fn set_wallpaper(config: WallpaperConfig) -> CmdResult<WallpaperView> {
@@ -256,26 +287,89 @@ async fn set_wallpaper(config: WallpaperConfig) -> CmdResult<WallpaperView> {
             }
         }
         config.save(&win::wallpaper_config_path()).map_err(err)?;
-
-        let play = config.enabled && config.has_video();
-        let exe = desktop_exe()?;
-        win::set_autostart((play && config.start_with_windows).then_some(exe.as_path()))
-            .map_err(err)?;
-        if !play {
-            win::desktop_stop();
-        } else if !win::desktop_reload() {
-            win::desktop_start(&exe).map_err(err)?;
-        }
-        // Give the process a moment to show up (or go away) before reporting.
-        let mut running = win::desktop_running();
-        for _ in 0..15 {
-            if running == play {
-                break;
-            }
-            std::thread::sleep(std::time::Duration::from_millis(100));
-            running = win::desktop_running();
-        }
+        let running = sync_desktop()?;
         Ok(wallpaper_view(config, running))
+    })
+    .await
+}
+
+#[derive(Serialize)]
+struct WidgetsView {
+    config: WidgetsConfig,
+    monitors: Vec<win::Monitor>,
+    running: bool,
+}
+
+#[tauri::command]
+async fn get_widgets() -> CmdResult<WidgetsView> {
+    blocking(|| {
+        Ok(WidgetsView {
+            config: WidgetsConfig::load(&win::widgets_config_path()).map_err(err)?,
+            monitors: win::monitors(),
+            running: win::desktop_running(),
+        })
+    })
+    .await
+}
+
+#[tauri::command]
+async fn set_widgets(config: WidgetsConfig) -> CmdResult<WidgetsView> {
+    blocking(move || {
+        config.save(&win::widgets_config_path()).map_err(err)?;
+        let running = sync_desktop()?;
+        Ok(WidgetsView {
+            config,
+            monitors: win::monitors(),
+            running,
+        })
+    })
+    .await
+}
+
+#[derive(Serialize)]
+struct ThemeView {
+    state: ThemeState,
+    accents: &'static [u32],
+}
+
+#[tauri::command]
+async fn get_theme() -> CmdResult<ThemeView> {
+    blocking(|| {
+        Ok(ThemeView {
+            state: win::theme_state(),
+            accents: theme::ACCENTS,
+        })
+    })
+    .await
+}
+
+#[tauri::command]
+async fn set_theme(state: ThemeState) -> CmdResult<ThemeState> {
+    blocking(move || {
+        win::set_theme_state(&state).map_err(err)?;
+        // The widgets draw their bars in the accent colour.
+        win::desktop_reload();
+        Ok(win::theme_state())
+    })
+    .await
+}
+
+/// The `.theme` files Windows and the user have, with wallpaper previews.
+#[tauri::command]
+async fn list_windows_themes() -> CmdResult<Vec<ThemeFile>> {
+    blocking(|| Ok(win::windows_themes())).await
+}
+
+#[tauri::command]
+async fn apply_windows_theme(path: PathBuf) -> CmdResult<ThemeState> {
+    blocking(move || {
+        // Only the themes listed above, not an arbitrary file.
+        if !win::windows_themes().iter().any(|t| t.path == path) {
+            return Err(format!("unknown theme: {}", path.display()));
+        }
+        let state = win::apply_windows_theme(&path).map_err(err)?;
+        win::desktop_reload();
+        Ok(state)
     })
     .await
 }
@@ -315,6 +409,12 @@ fn main() {
             open_nvidia_page,
             get_wallpaper,
             set_wallpaper,
+            get_widgets,
+            set_widgets,
+            get_theme,
+            set_theme,
+            list_windows_themes,
+            apply_windows_theme,
             pick_video,
             restart_explorer
         ])

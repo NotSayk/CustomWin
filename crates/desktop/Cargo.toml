@@ -1,6 +1,6 @@
 [package]
 name = "customwin-desktop"
-description = "CustomWin animated wallpaper: GPU-decoded video behind the desktop icons"
+description = "CustomWin desktop: GPU-decoded video wallpaper, widgets behind the icons, transparent taskbar"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -9,14 +9,21 @@ rust-version.workspace = true
 
 [dependencies]
 customwin-core.workspace = true
+customwin-taskbar = { path = "../taskbar" }
 
 [target.'cfg(windows)'.dependencies]
 windows-core = "0.62"
 windows = { workspace = true, features = [
+    "Foundation",
+    "Media_Control",
     "Win32_Foundation",
+    "Win32_Globalization",
+    "Win32_Graphics_Direct2D",
+    "Win32_Graphics_Direct2D_Common",
     "Win32_Graphics_Direct3D",
     "Win32_Graphics_Direct3D11",
     "Win32_Graphics_DirectComposition",
+    "Win32_Graphics_DirectWrite",
     "Win32_Graphics_Dwm",
     "Win32_Graphics_Dxgi",
     "Win32_Graphics_Dxgi_Common",
@@ -27,6 +34,7 @@ windows = { workspace = true, features = [
     "Win32_System_Power",
     "Win32_System_ProcessStatus",
     "Win32_System_RemoteDesktop",
+    "Win32_System_SystemInformation",
     "Win32_System_SystemServices",
     "Win32_System_Threading",
     "Win32_UI_Accessibility",

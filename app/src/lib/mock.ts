@@ -11,13 +11,26 @@ import type {
   Recommendation,
   RunResult,
   StatesView,
+  ThemeFile,
+  ThemeState,
   TweakState,
   WallpaperConfig,
+  WidgetsConfig,
 } from "./types";
 
 const monitors: Monitor[] = [
-  { device: "\\\\.\\DISPLAY1", rect: { left: 0, top: 0, right: 2560, bottom: 1440 }, primary: true },
-  { device: "\\\\.\\DISPLAY2", rect: { left: 2560, top: 180, right: 4480, bottom: 1260 }, primary: false },
+  {
+    device: "\\\\.\\DISPLAY1",
+    rect: { left: 0, top: 0, right: 2560, bottom: 1440 },
+    work: { left: 0, top: 0, right: 2560, bottom: 1392 },
+    primary: true,
+  },
+  {
+    device: "\\\\.\\DISPLAY2",
+    rect: { left: 2560, top: 180, right: 4480, bottom: 1260 },
+    work: { left: 2560, top: 180, right: 4480, bottom: 1212 },
+    primary: false,
+  },
 ];
 
 let wallpaper: WallpaperConfig = {
@@ -30,6 +43,46 @@ let wallpaper: WallpaperConfig = {
   pause_on_battery: true,
   start_with_windows: false,
 };
+
+let widgets: WidgetsConfig = {
+  widgets: [
+    { kind: "clock", enabled: true, device: null, corner: "top_right" },
+    { kind: "system", enabled: false, device: null, corner: "top_right" },
+    { kind: "media", enabled: false, device: null, corner: "bottom_right" },
+  ],
+  transparent_taskbar: false,
+};
+
+let theme: ThemeState = {
+  apps_light: false,
+  system_light: false,
+  transparency: true,
+  accent: 0x0078d4,
+  auto_accent: false,
+  accent_on_taskbar: false,
+  accent_on_title_bars: false,
+};
+
+const themes: ThemeFile[] = [
+  ["Windows (clair)", 0x0078d4, true, "#9cc7ef"],
+  ["Windows (sombre)", 0x0078d4, false, "#1b2a4a"],
+  ["Éclat", 0x680081, false, "#3b1450"],
+  ["Lever de soleil", 0x459bac, true, "#f0b27a"],
+].map(([name, accent, light, color]) => ({
+  path: `C:\Windows\Resources\Themes\${name}.theme`,
+  name: name as string,
+  wallpaper: null,
+  accent: accent as number,
+  auto_accent: false,
+  apps_light: light as boolean,
+  system_light: light as boolean,
+  thumbnail: `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="192" height="108"><rect width="192" height="108" fill="${color}"/></svg>`)}`,
+}));
+
+const accents = [
+  0x0078d4, 0x0063b1, 0x8764b8, 0x744da9, 0xb146c2, 0xe3008c, 0xea005e, 0xe81123, 0xca5010, 0xf7630c, 0xffb900,
+  0x498205, 0x107c10, 0x00b294, 0x038387, 0x2d7d9a, 0x567c73, 0x68768a, 0x515c6b, 0x4c4a48,
+];
 
 let catalog: CatalogView | null = null;
 const applied = new Set<string>(["explorer.show_extensions"]);
@@ -156,6 +209,27 @@ export async function invoke<T>(cmd: string, args: Record<string, unknown> = {})
         monitors,
         running: wallpaper.enabled && (wallpaper.layout === "span" ? !!wallpaper.span_video : wallpaper.screens.some((s) => s.video)),
       } as T;
+    case "get_widgets":
+      return { config: widgets, monitors, running: true } as T;
+    case "set_widgets":
+      await delay(200);
+      widgets = args.config as WidgetsConfig;
+      return { config: widgets, monitors, running: true } as T;
+    case "get_theme":
+      return { state: theme, accents } as T;
+    case "set_theme":
+      await delay(150);
+      theme = args.state as ThemeState;
+      return theme as T;
+    case "list_windows_themes":
+      await delay(300);
+      return themes as T;
+    case "apply_windows_theme": {
+      await delay(400);
+      const t = themes.find((x) => x.path === args.path)!;
+      theme = { ...theme, accent: t.accent!, apps_light: t.apps_light!, system_light: t.system_light! };
+      return theme as T;
+    }
     case "pick_video":
       return "C:\\Users\\Moi\\Videos\\Wallpapers\\aurore-boreale-4k.mp4" as T;
     case "check_drivers":

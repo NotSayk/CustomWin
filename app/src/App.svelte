@@ -4,22 +4,22 @@
   import { i18n, setLang, t, type Key } from "./lib/i18n.svelte";
   import { load, run, store } from "./lib/store.svelte";
   import Analysis from "./views/Analysis.svelte";
-  import Soon from "./views/Soon.svelte";
   import Tweaks from "./views/Tweaks.svelte";
   import Wallpaper from "./views/Wallpaper.svelte";
+  import Widgets from "./views/Widgets.svelte";
+  import WindowsTheme from "./views/WindowsTheme.svelte";
 
   type View = "analysis" | "tweaks" | "themes" | "widgets";
-  const nav: { id: View; label: Key; soon?: Key; icon: string }[] = [
+  const nav: { id: View; label: Key; icon: string }[] = [
     { id: "analysis", label: "nav.analysis", icon: "M4 19h16M7 16V9m5 7V5m5 11v-4" },
     { id: "tweaks", label: "nav.tweaks", icon: "M4 7h10m4 0h2M4 17h4m4 0h8M14 4v6m-6 4v6" },
     { id: "themes", label: "nav.themes", icon: "M12 3a9 9 0 1 0 0 18c1 0 1.5-.8 1.5-1.5 0-1.5-1.5-1.5-1.5-3S13 14 14.5 14H17a4 4 0 0 0 4-4c0-3.9-4-7-9-7Z" },
-    { id: "widgets", label: "nav.widgets", soon: "soon.widgets", icon: "M4 4h7v7H4zm9 0h7v7h-7zM4 13h7v7H4zm9 0h7v7h-7z" },
+    { id: "widgets", label: "nav.widgets", icon: "M4 4h7v7H4zm9 0h7v7h-7zM4 13h7v7H4zm9 0h7v7h-7z" },
   ];
 
   let view = $state<View>("analysis");
   let main: HTMLElement;
   let confirmUndo = $state(false);
-  const current = $derived(nav.find((n) => n.id === view)!);
 
   onMount(load);
 
@@ -50,7 +50,6 @@
           }}>
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d={item.icon} /></svg>
           <span>{t(item.label)}</span>
-          {#if item.soon}<span class="soon">{t("nav.soon")}</span>{/if}
         </button>
       {/each}
     </nav>
@@ -76,9 +75,10 @@
     {:else if view === "tweaks"}
       <Tweaks />
     {:else if view === "themes"}
+      <WindowsTheme />
       <Wallpaper />
-    {:else if current.soon}
-      <Soon title={current.label} body={current.soon} />
+    {:else if view === "widgets"}
+      <Widgets />
     {/if}
   </main>
 </div>
@@ -191,13 +191,6 @@
     stroke-linecap: round;
     stroke-linejoin: round;
     flex: none;
-  }
-  .soon {
-    margin-left: auto;
-    font-size: 10.5px;
-    color: var(--text-2);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
   }
   .foot {
     display: flex;

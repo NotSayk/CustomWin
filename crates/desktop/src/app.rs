@@ -2,7 +2,8 @@
 //!
 //! When nothing plays, the thread sleeps in `WaitMessage` (0 % CPU, decoders paused).
 //! When something plays, it wakes once per display refresh, asks each video for a new
-//! frame and copies the new ones to their screens on the GPU.
+//! frame and copies the new ones to their screens on the GPU. Widgets add a one-second
+//! timer, stopped whenever none of them can be seen.
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -31,8 +32,10 @@ use windows::Win32::UI::WindowsAndMessaging::*;
 
 use crate::render::{Gpu, Surface, Video};
 use crate::shell::{self, Host};
-use crate::{log, watch};
+use crate::widgets::{Content, Painter, Sampler, WidgetWindow};
+use crate::{log, taskbar, watch, widgets};
 use customwin_core::wallpaper::{self, Fit, Layout, Rect, WallpaperConfig};
+use customwin_core::widgets::{WidgetKind, WidgetsConfig};
 use customwin_core::windows as win;
 
 static RELOAD: AtomicBool = AtomicBool::new(false);
@@ -40,11 +43,15 @@ static QUIT: AtomicBool = AtomicBool::new(false);
 static LOCKED: AtomicBool = AtomicBool::new(false);
 static DISPLAY_OFF: AtomicBool = AtomicBool::new(false);
 static UNLOAD: AtomicBool = AtomicBool::new(false);
+static TICK: AtomicBool = AtomicBool::new(false);
+static TASKBAR_RETRY: AtomicBool = AtomicBool::new(false);
 static TASKBAR_CREATED: AtomicU32 = AtomicU32::new(0);
 
 const WALL_CLASS: PCWSTR = w!("CustomWinWallpaper");
 const RETRY_TIMER: usize = 1;
 const UNLOAD_TIMER: usize = 2;
+const WIDGET_TIMER: usize = 3;
+const TASKBAR_TIMER: usize = 4;
 /// How long every wallpaper must stay paused before its decoder is released.
 const UNLOAD_AFTER_MS: u32 = 60_000;
 
@@ -64,6 +71,13 @@ struct App {
     videos: HashMap<PathBuf, Video>,
     placed: Vec<Placed>,
     attached: bool,
+    widgets_config: WidgetsConfig,
+    widgets: Vec<WidgetWindow>,
+    painter: Option<Painter>,
+    sampler: Sampler,
+    /// The taskbar was made transparent and must be given back its look on exit.
+    taskbar_on: bool,
+    taskbar_tries: u32,
 }
 
 pub fn run(windowed: bool) -> windows_core::Result<()> {
@@ -130,6 +144,12 @@ pub fn run(windowed: bool) -> windows_core::Result<()> {
             videos: HashMap::new(),
             placed: Vec::new(),
             attached: false,
+            widgets_config: WidgetsConfig::default(),
+            widgets: Vec::new(),
+            painter: None,
+            sampler: Sampler::new(),
+            taskbar_on: false,
+            taskbar_tries: 0,
         };
         app.rebuild();
 
@@ -155,6 +175,12 @@ pub fn run(windowed: bool) -> windows_core::Result<()> {
             if UNLOAD.swap(false, Ordering::Relaxed) {
                 app.unload_paused();
             }
+            if TICK.swap(false, Ordering::Relaxed) {
+                app.tick_widgets();
+            }
+            if TASKBAR_RETRY.swap(false, Ordering::Relaxed) {
+                app.sync_taskbar();
+            }
             if app.placed.iter().any(|p| p.active) {
                 app.gpu.wait_vblank();
                 app.render();
@@ -169,37 +195,60 @@ pub fn run(windowed: bool) -> windows_core::Result<()> {
 }
 
 impl App {
-    fn teardown(&mut self) {
-        for p in self.placed.drain(..) {
+    fn destroy_windows(&mut self) {
+        let walls = self.placed.drain(..).map(|p| p.surface.hwnd);
+        for hwnd in walls.chain(self.widgets.drain(..).map(|w| w.hwnd)) {
             unsafe {
-                let _ = DestroyWindow(p.surface.hwnd);
+                let _ = DestroyWindow(hwnd);
             }
         }
+    }
+
+    fn teardown(&mut self) {
+        self.destroy_windows();
         self.videos.clear();
         if std::mem::take(&mut self.attached) {
             shell::repaint_static_wallpaper();
+        }
+        if self.taskbar_on {
+            if let Err(e) = taskbar::set(false) {
+                log::write(&format!("taskbar: {e}"));
+            }
         }
     }
 
     /// Explorer restarted (or crashed): our child windows went with it.
     fn lost_windows(&self) -> bool {
-        self.placed.iter().any(|p| !watch::alive(p.surface.hwnd))
+        let walls = self.placed.iter().map(|p| p.surface.hwnd);
+        walls
+            .chain(self.widgets.iter().map(|w| w.hwnd))
+            .any(|h| !watch::alive(h))
     }
 
     fn rebuild(&mut self) {
-        for p in self.placed.drain(..) {
-            unsafe {
-                let _ = DestroyWindow(p.surface.hwnd);
-            }
-        }
+        self.destroy_windows();
         self.config = WallpaperConfig::load(&win::wallpaper_config_path()).unwrap_or_else(|e| {
             log::write(&format!("config: {e}"));
             WallpaperConfig::default()
         });
-        if !self.config.enabled || !self.config.has_video() {
-            log::write("nothing to play: exiting");
+        self.widgets_config =
+            WidgetsConfig::load(&win::widgets_config_path()).unwrap_or_else(|e| {
+                log::write(&format!("widgets: {e}"));
+                WidgetsConfig::default()
+            });
+        let play = self.config.enabled && self.config.has_video();
+        let show_widgets = !self.windowed && self.widgets_config.enabled().next().is_some();
+        self.sync_taskbar();
+        if !play && !show_widgets && !self.widgets_config.transparent_taskbar {
+            log::write("nothing to do: exiting");
             QUIT.store(true, Ordering::Relaxed);
             return;
+        }
+        if !play {
+            self.videos.clear();
+        }
+        if !play && !show_widgets {
+            return; // the taskbar alone needs no window
         }
 
         let host = if self.windowed {
@@ -218,7 +267,7 @@ impl App {
             let _ = KillTimer(Some(self.control), RETRY_TIMER);
         }
 
-        let plan = self.plan();
+        let plan = if play { self.plan() } else { Vec::new() };
         log::write(&format!("{} wallpaper surface(s)", plan.len()));
         self.videos
             .retain(|path, _| plan.iter().any(|(_, v, _, _)| v == path));
@@ -245,8 +294,110 @@ impl App {
                 Err(e) => log::write(&format!("cannot create the wallpaper window: {e}")),
             }
         }
-        self.attached = !self.windowed && !self.placed.is_empty();
+        if show_widgets {
+            self.build_widgets(host);
+        }
+        self.attached = !self.windowed && !(self.placed.is_empty() && self.widgets.is_empty());
         watch::CHANGED.store(true, Ordering::Relaxed);
+    }
+
+    /// Widget windows go in after the wallpaper ones: right below the icons, above the
+    /// video.
+    fn build_widgets(&mut self, host: Host) {
+        match &mut self.painter {
+            Some(p) => p.accent = win::theme_state().accent,
+            None => match Painter::new(&self.gpu) {
+                Ok(p) => self.painter = Some(p),
+                Err(e) => {
+                    log::write(&format!("widgets: Direct2D unavailable: {e}"));
+                    return;
+                }
+            },
+        }
+        for place in widgets::layout(&self.widgets_config, &win::monitors()) {
+            let hwnd = match self.create_window(host, place.rect) {
+                Ok(h) => h,
+                Err(e) => {
+                    log::write(&format!("cannot create a widget window: {e}"));
+                    continue;
+                }
+            };
+            match self
+                .gpu
+                .transparent_chain(hwnd, place.rect.width(), place.rect.height())
+            {
+                Ok(Some(chain)) => self.widgets.push(WidgetWindow::new(hwnd, &place, chain)),
+                other => {
+                    match other {
+                        Err(e) => log::write(&format!("widget surface: {e}")),
+                        _ => log::write("widgets need DirectComposition"),
+                    }
+                    unsafe {
+                        let _ = DestroyWindow(hwnd);
+                    }
+                }
+            }
+        }
+        log::write(&format!("{} widget(s)", self.widgets.len()));
+    }
+
+    /// Redraws the visible widgets whose text changed.
+    fn tick_widgets(&mut self) {
+        let Some(painter) = &self.painter else {
+            return;
+        };
+        if self
+            .widgets
+            .iter()
+            .any(|w| w.active && w.kind == WidgetKind::System)
+        {
+            self.sampler.refresh_cpu();
+        }
+        let mut contents: HashMap<WidgetKind, Content> = HashMap::new();
+        for w in self.widgets.iter_mut().filter(|w| w.active) {
+            let content = contents
+                .entry(w.kind)
+                .or_insert_with(|| self.sampler.content(w.kind))
+                .clone();
+            if let Err(e) = painter.update(w, content) {
+                log::write(&format!("widget draw: {e}"));
+            }
+        }
+    }
+
+    /// Applies `transparent_taskbar`. Explorer may not be ready yet (sign-in, restart):
+    /// a few retries then.
+    fn sync_taskbar(&mut self) {
+        if self.windowed {
+            return;
+        }
+        let want = self.widgets_config.transparent_taskbar;
+        if !want && !self.taskbar_on {
+            return;
+        }
+        unsafe {
+            let _ = KillTimer(Some(self.control), TASKBAR_TIMER);
+        }
+        match taskbar::set(want) {
+            Ok(()) => {
+                if want != self.taskbar_on {
+                    log::write(if want {
+                        "taskbar: transparent"
+                    } else {
+                        "taskbar: normal"
+                    });
+                }
+                self.taskbar_on = want;
+                self.taskbar_tries = 0;
+            }
+            Err(e) => {
+                log::write(&format!("taskbar: {e}"));
+                if want && self.taskbar_tries < 5 {
+                    self.taskbar_tries += 1;
+                    unsafe { SetTimer(Some(self.control), TASKBAR_TIMER, 3000, None) };
+                }
+            }
+        }
     }
 
     /// (screen rect, video, fit, monitors covered) for each window to create.
@@ -301,6 +452,24 @@ impl App {
     }
 
     fn create_surface(&self, host: Host, rect: Rect) -> windows_core::Result<Surface> {
+        let hwnd = self.create_window(host, rect)?;
+        unsafe {
+            let mut client = RECT::default();
+            GetClientRect(hwnd, &mut client)?;
+            Surface::new(
+                &self.gpu,
+                hwnd,
+                client.right - client.left,
+                client.bottom - client.top,
+            )
+            .inspect_err(|_| {
+                let _ = DestroyWindow(hwnd);
+            })
+        }
+    }
+
+    /// A window moved into the wallpaper layer, covering `rect` (screen coordinates).
+    fn create_window(&self, host: Host, rect: Rect) -> windows_core::Result<HWND> {
         unsafe {
             let instance = GetModuleHandleW(None)?;
             let (style, mut ex) = if self.windowed {
@@ -329,17 +498,7 @@ impl App {
                 None,
             )?;
             shell::attach(hwnd, host, rect);
-            let mut client = RECT::default();
-            GetClientRect(hwnd, &mut client)?;
-            Surface::new(
-                &self.gpu,
-                hwnd,
-                client.right - client.left,
-                client.bottom - client.top,
-            )
-            .inspect_err(|_| {
-                let _ = DestroyWindow(hwnd);
-            })
+            Ok(hwnd)
         }
     }
 
@@ -356,6 +515,20 @@ impl App {
         for p in &mut self.placed {
             p.active =
                 wallpaper::should_play(&p.devices, &fg, self.config.pause_when_maximized, global);
+        }
+        // Widgets cost almost nothing: only a lock, a dark screen or a window over them
+        // stops them, not the battery.
+        let hidden = LOCKED.load(Ordering::Relaxed) || DISPLAY_OFF.load(Ordering::Relaxed);
+        for w in &mut self.widgets {
+            w.active = wallpaper::should_play(std::slice::from_ref(&w.device), &fg, true, hidden);
+        }
+        unsafe {
+            if self.widgets.iter().any(|w| w.active) {
+                SetTimer(Some(self.control), WIDGET_TIMER, 1000, None);
+                TICK.store(true, Ordering::Relaxed);
+            } else {
+                let _ = KillTimer(Some(self.control), WIDGET_TIMER);
+            }
         }
         for (path, video) in &mut self.videos {
             let play = self.placed.iter().any(|p| p.active && p.video == *path);
@@ -420,6 +593,9 @@ unsafe extern "system" fn control_proc(
 ) -> LRESULT {
     match msg {
         WM_TIMER if wparam.0 == UNLOAD_TIMER => UNLOAD.store(true, Ordering::Relaxed),
+        WM_TIMER if wparam.0 == WIDGET_TIMER => TICK.store(true, Ordering::Relaxed),
+        WM_TIMER if wparam.0 == TASKBAR_TIMER => TASKBAR_RETRY.store(true, Ordering::Relaxed),
+        WM_TIMECHANGE => TICK.store(true, Ordering::Relaxed),
         wallpaper::MSG_RELOAD | WM_DISPLAYCHANGE | WM_TIMER => {
             RELOAD.store(true, Ordering::Relaxed)
         }
