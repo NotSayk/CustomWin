@@ -343,7 +343,7 @@ pub struct Recommendation {
 }
 
 /// Catalog tweaks that serve at least one of the user's goals and are not applied yet,
-/// best first: proven effect, then lower risk.
+/// best first: fully reversible, then most goals served, proven effect, lower risk.
 pub fn recommend(
     catalog: &Catalog,
     answers: &Answers,
@@ -385,6 +385,7 @@ pub fn recommend(
     };
     recs.sort_by_key(|(t, r)| {
         (
+            !t.fully_reversible(),
             std::cmp::Reverse(r.goals.len()),
             evidence_rank(t.evidence),
             t.risk,

@@ -4,12 +4,13 @@ Optimise et personnalise Windows 11 **en un clic, et de façon réversible**.
 
 - **Analyse** de la machine (Windows, processeur, GPU NVIDIA et pilote, alimentation, réseau) avec des constats concrets : pilote ancien, câble Ethernet bridé à 100 Mb/s, mode économie d'énergie sur un PC fixe…
 - **Questionnaire** (jeu, réactivité, confidentialité, Windows épuré) qui produit la liste des réglages à améliorer, appliquée en un clic.
-- **Tweaks** : télémétrie, pubs, Widgets, menu contextuel classique, barre des tâches, animations, Game DVR, HAGS… avec des **profils** (Minimal, Gaming, Confidentialité) et un bouton **Tout annuler**.
+- **Tweaks** : télémétrie, pubs, Widgets, menu contextuel classique, barre des tâches, animations, Game DVR, HAGS, **applis préinstallées**, **pilote NVIDIA** (faible latence, performances maximales), **cartes réseau** (Energy-Efficient Ethernet, mise hors tension)… avec des **profils** (Minimal, Gaming, Confidentialité) et un bouton **Tout annuler**.
+- **Pilote NVIDIA à jour ?** Vérification en ligne sur demande, auprès de NVIDIA uniquement.
 - Chaque tweak indique son **niveau de risque** et ce qu'on sait réellement de son effet (« gain mesuré », « gain variable » ou simplement fonctionnel). Les « optimisations » placebo qui circulent sur internet sont volontairement absentes.
 
 Prévu ensuite : profils de contexte (Focus, Gaming), thèmes et fonds d'écran vidéo animés, widgets de bureau ultra-légers. Voir [la feuille de route](docs/ROADMAP.md).
 
-> État : **phase 1** (moteur de tweaks, analyse, interface). Pas encore de version publiée.
+> État : **phase 1 terminée** (moteur de tweaks, analyse, interface). Pas encore de version publiée.
 
 ## Sécurité et réversibilité
 
@@ -17,7 +18,8 @@ Prévu ensuite : profils de contexte (Focus, Gaming), thèmes et fonds d'écran 
 2. Un tweak est tout ou rien : si une de ses actions échoue, les précédentes sont annulées.
 3. « Tout annuler » rejoue le journal à l'envers, et supprime les clés de registre que CustomWin avait créées.
 4. Pour les réglages système, un point de restauration Windows est créé avant d'appliquer.
-5. L'interface ne tourne jamais en administrateur. Seul `customwin-helper.exe` est élevé (une invite UAC par opération), et il n'exécute que des tweaks du catalogue, jamais de commande arbitraire.
+5. Les seuls tweaks qui ne s'annulent pas entièrement sur place (suppression d'applis : l'annulation les réinstalle depuis le Store) sont signalés « partiellement réversible » et jamais inclus dans un profil.
+6. L'interface ne tourne jamais en administrateur. Seul `customwin-helper.exe` est élevé (une invite UAC par opération), et il n'exécute que des tweaks du catalogue, jamais de commande arbitraire.
 
 ## Structure
 

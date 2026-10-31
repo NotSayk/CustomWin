@@ -1,0 +1,244 @@
+# Applis préinstallées, supprimées pour l'utilisateur courant.
+# Partiellement réversible : l'annulation les réinstalle depuis le Microsoft Store (winget),
+# ce qui demande internet. Ces tweaks ne peuvent donc pas figurer dans un profil.
+# Identifiants Store vérifiés auprès du Microsoft Store (octobre 2026).
+
+[[tweak]]
+id = "apps.news"
+category = "apps"
+risk = "safe"
+evidence = "functional"
+tags = ["clean"]
+name = { fr = "Supprimer Microsoft Actualités", en = "Remove Microsoft News" }
+description = { fr = "Retire l'application d'actualités MSN préinstallée.", en = "Removes the preinstalled MSN news app." }
+
+[[tweak.action]]
+kind = "appx"
+package = "Microsoft.BingNews"
+store_id = "9WZDNCRFHVFW"
+
+[[tweak]]
+id = "apps.weather"
+category = "apps"
+risk = "safe"
+evidence = "functional"
+tags = ["clean"]
+name = { fr = "Supprimer Météo MSN", en = "Remove MSN Weather" }
+description = { fr = "Retire l'application Météo préinstallée.", en = "Removes the preinstalled Weather app." }
+
+[[tweak.action]]
+kind = "appx"
+package = "Microsoft.BingWeather"
+store_id = "9WZDNCRFJ3Q2"
+
+[[tweak]]
+id = "apps.solitaire"
+category = "apps"
+risk = "safe"
+evidence = "functional"
+tags = ["clean"]
+name = { fr = "Supprimer Microsoft Solitaire Collection", en = "Remove Microsoft Solitaire Collection" }
+description = { fr = "Retire le jeu de cartes préinstallé, avec ses publicités.", en = "Removes the preinstalled card game and its ads." }
+
+[[tweak.action]]
+kind = "appx"
+package = "Microsoft.MicrosoftSolitaireCollection"
+store_id = "9WZDNCRFHWD2"
+
+[[tweak]]
+id = "apps.movies_tv"
+category = "apps"
+risk = "safe"
+evidence = "functional"
+tags = ["clean"]
+name = { fr = "Supprimer Films et TV", en = "Remove Movies & TV" }
+description = { fr = "Retire l'ancienne application vidéo, remplacée par le Lecteur multimédia.", en = "Removes the old video app, superseded by Media Player." }
+
+[[tweak.action]]
+kind = "appx"
+package = "Microsoft.ZuneVideo"
+store_id = "9WZDNCRFJ3P2"
+
+[[tweak]]
+id = "apps.feedback_hub"
+category = "apps"
+risk = "safe"
+evidence = "functional"
+tags = ["clean"]
+name = { fr = "Supprimer Hub de commentaires", en = "Remove Feedback Hub" }
+description = { fr = "Retire l'application qui envoie des retours à Microsoft.", en = "Removes the app that sends feedback to Microsoft." }
+
+[[tweak.action]]
+kind = "appx"
+package = "Microsoft.WindowsFeedbackHub"
+store_id = "9NBLGGH4R32N"
+
+[[tweak]]
+id = "apps.office_hub"
+category = "apps"
+risk = "safe"
+evidence = "functional"
+tags = ["clean"]
+name = { fr = "Supprimer l'appli Microsoft 365 Copilot", en = "Remove the Microsoft 365 Copilot app" }
+description = { fr = "Retire le lanceur Microsoft 365 qui fait la promotion des abonnements. N'affecte pas Word, Excel ou PowerPoint s'ils sont installés.", en = "Removes the Microsoft 365 launcher that promotes subscriptions. Does not affect Word, Excel or PowerPoint if installed." }
+
+[[tweak.action]]
+kind = "appx"
+package = "Microsoft.MicrosoftOfficeHub"
+store_id = "9WZDNCRD29V9"
+
+[[tweak]]
+id = "apps.clipchamp"
+category = "apps"
+risk = "safe"
+evidence = "functional"
+tags = ["clean"]
+name = { fr = "Supprimer Clipchamp", en = "Remove Clipchamp" }
+description = { fr = "Retire l'éditeur vidéo en ligne préinstallé.", en = "Removes the preinstalled online video editor." }
+
+[[tweak.action]]
+kind = "appx"
+package = "Clipchamp.Clipchamp"
+store_id = "9P1J8S7CCWWT"
+
+[[tweak]]
+id = "apps.power_automate"
+category = "apps"
+risk = "safe"
+evidence = "functional"
+tags = ["clean"]
+name = { fr = "Supprimer Power Automate", en = "Remove Power Automate" }
+description = { fr = "Retire l'outil d'automatisation pour entreprises.", en = "Removes the business automation tool." }
+
+[[tweak.action]]
+kind = "appx"
+package = "Microsoft.PowerAutomateDesktop"
+store_id = "9NFTCH6J7FHV"
+
+[[tweak]]
+id = "apps.maps"
+category = "apps"
+risk = "safe"
+evidence = "functional"
+tags = ["clean"]
+name = { fr = "Supprimer Cartes Windows", en = "Remove Windows Maps" }
+description = { fr = "Retire l'application de cartes, plus maintenue par Microsoft.", en = "Removes the maps app, no longer maintained by Microsoft." }
+
+[[tweak.action]]
+kind = "appx"
+package = "Microsoft.WindowsMaps"
+store_id = "9WZDNCRDTBVB"
+
+[[tweak]]
+id = "apps.get_help"
+category = "apps"
+risk = "safe"
+evidence = "functional"
+tags = ["clean"]
+name = { fr = "Supprimer Obtenir de l'aide", en = "Remove Get Help" }
+description = { fr = "Retire l'assistant d'aide de Microsoft.", en = "Removes Microsoft's help assistant." }
+
+[[tweak.action]]
+kind = "appx"
+package = "Microsoft.GetHelp"
+store_id = "9PKDZBMV1H3T"
+
+[[tweak]]
+id = "apps.tips"
+category = "apps"
+risk = "safe"
+evidence = "functional"
+tags = ["clean"]
+name = { fr = "Supprimer Astuces", en = "Remove Tips" }
+description = { fr = "Retire l'application de conseils pour débuter avec Windows.", en = "Removes the getting-started tips app." }
+
+[[tweak.action]]
+kind = "appx"
+package = "Microsoft.Getstarted"
+store_id = "9WZDNCRDTBJJ"
+
+[[tweak]]
+id = "apps.people"
+category = "apps"
+risk = "safe"
+evidence = "functional"
+tags = ["clean"]
+name = { fr = "Supprimer Contacts", en = "Remove People" }
+description = { fr = "Retire l'ancienne application Contacts.", en = "Removes the old People app." }
+
+[[tweak.action]]
+kind = "appx"
+package = "Microsoft.People"
+store_id = "9NBLGGH10PG8"
+
+[[tweak]]
+id = "apps.copilot"
+category = "apps"
+risk = "safe"
+evidence = "functional"
+tags = ["clean", "privacy"]
+name = { fr = "Supprimer l'appli Copilot", en = "Remove the Copilot app" }
+description = { fr = "Retire l'assistant IA Copilot préinstallé.", en = "Removes the preinstalled Copilot AI assistant." }
+
+[[tweak.action]]
+kind = "appx"
+package = "Microsoft.Copilot"
+store_id = "9NHT9RB2F4HD"
+
+# Applis utiles à certains : jamais recommandées automatiquement (aucun objectif).
+
+[[tweak]]
+id = "apps.outlook"
+category = "apps"
+risk = "low"
+evidence = "functional"
+tags = []
+name = { fr = "Supprimer le nouvel Outlook", en = "Remove the new Outlook" }
+description = { fr = "Retire l'application Outlook préinstallée. À éviter si tu l'utilises pour tes e-mails.", en = "Removes the preinstalled Outlook app. Skip it if you use it for email." }
+
+[[tweak.action]]
+kind = "appx"
+package = "Microsoft.OutlookForWindows"
+store_id = "9NRX63209R7B"
+
+[[tweak]]
+id = "apps.teams"
+category = "apps"
+risk = "low"
+evidence = "functional"
+tags = []
+name = { fr = "Supprimer Microsoft Teams (personnel)", en = "Remove Microsoft Teams (personal)" }
+description = { fr = "Retire Teams préinstallé et son lancement au démarrage.", en = "Removes preinstalled Teams and its start-up launch." }
+
+[[tweak.action]]
+kind = "appx"
+package = "MSTeams"
+store_id = "XP8BT8DW290MPQ"
+
+[[tweak]]
+id = "apps.todo"
+category = "apps"
+risk = "low"
+evidence = "functional"
+tags = []
+name = { fr = "Supprimer Microsoft To Do", en = "Remove Microsoft To Do" }
+description = { fr = "Retire l'application de listes de tâches.", en = "Removes the task list app." }
+
+[[tweak.action]]
+kind = "appx"
+package = "Microsoft.Todos"
+store_id = "9NBLGGH5R558"
+
+[[tweak]]
+id = "apps.quick_assist"
+category = "apps"
+risk = "low"
+evidence = "functional"
+tags = []
+name = { fr = "Supprimer Assistance rapide", en = "Remove Quick Assist" }
+description = { fr = "Retire l'outil de prise en main à distance. Garde-le si quelqu'un t'aide parfois à distance.", en = "Removes the remote help tool. Keep it if someone sometimes helps you remotely." }
+
+[[tweak.action]]
+kind = "appx"
+package = "MicrosoftCorporationII.QuickAssist"
+store_id = "9P7BP5VNWKX5"

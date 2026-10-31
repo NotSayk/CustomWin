@@ -14,6 +14,8 @@
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
+use customwin_core::engine::touches_user_settings;
+use customwin_core::journal::Journal;
 use customwin_core::{Catalog, HelperRequest, HelperResponse, Operation};
 
 fn main() -> ExitCode {
@@ -105,6 +107,21 @@ fn handle(catalog: &Catalog, req: &HelperRequest) -> HelperResponse {
             ..Default::default()
         };
     }
+    // Elevated with another administrator's credentials, this process sees that
+    // account's HKCU: per-user tweaks would land on the wrong account.
+    if let (Some(requester), Some(me)) = (&req.user_sid, platform::current_sid()) {
+        let journal = Journal::load(&req.journal_path).unwrap_or_default();
+        if *requester != me && touches_user_settings(catalog, &journal, &req.operation) {
+            return HelperResponse {
+                error: Some(
+                    "elevated as a different account: per-user settings would go to that \
+                     account. Run CustomWin from an administrator account."
+                        .into(),
+                ),
+                ..Default::default()
+            };
+        }
+    }
     platform::run(
         catalog,
         &req.operation,
@@ -159,6 +176,10 @@ mod platform {
         customwin_core::windows::journal_path()
     }
 
+    pub fn current_sid() -> Option<String> {
+        customwin_core::windows::current_user_sid()
+    }
+
     pub fn run(
         catalog: &Catalog,
         op: &Operation,
@@ -209,6 +230,10 @@ mod platform {
         std::env::temp_dir().join("CustomWin").join("journal.json")
     }
 
+    pub fn current_sid() -> Option<String> {
+        None
+    }
+
     pub fn run(_: &Catalog, _: &Operation, _: &Path, _: bool) -> HelperResponse {
         HelperResponse {
             error: Some("CustomWin only runs on Windows".into()),
@@ -233,6 +258,30 @@ mod tests {
         );
     }
 
+    #[cfg(windows)]
+    #[test]
+    fn per_user_tweaks_are_refused_for_another_account() {
+        let c = Catalog::embedded().unwrap();
+        let dir = std::env::temp_dir()
+            .join(format!("sid-{}", std::process::id()))
+            .join("CustomWin");
+        let req = |ids: &[&str]| HelperRequest {
+            operation: Operation::Apply(ids.iter().map(|s| s.to_string()).collect()),
+            journal_path: dir.join("journal.json"),
+            restore_point: false,
+            user_sid: Some("S-1-5-21-1-2-3-9999".into()),
+        };
+        let refused = handle(&c, &req(&["ads.lock_screen"]));
+        assert!(refused.error.unwrap().contains("different account"));
+        // Machine-wide only: the SID check lets it through (it may still fail later).
+        let machine = handle(&c, &req(&["privacy.diagtrack_service"]));
+        assert!(!machine
+            .error
+            .unwrap_or_default()
+            .contains("different account"));
+        let _ = std::fs::remove_dir_all(dir.parent().unwrap());
+    }
+
     #[test]
     fn foreign_journal_paths_are_refused() {
         let c = Catalog::embedded().unwrap();
@@ -240,6 +289,7 @@ mod tests {
             operation: Operation::RevertAll,
             journal_path: p.into(),
             restore_point: false,
+            user_sid: None,
         };
         for bad in [
             "/etc/passwd",

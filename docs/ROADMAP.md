@@ -2,20 +2,21 @@
 
 Décisions prises : Windows 11 23H2 et plus récent · Rust + Tauri 2 + Svelte 5 · open source (MIT) · NVIDIA d'abord, AMD et Intel ensuite · tweaks risqués en mode expert uniquement · internet optionnel · interface FR + EN.
 
-## Phase 1 — Tweaks et analyse ✅ (en cours de finition)
+## Phase 1 — Tweaks et analyse ✅
 
 - [x] Moteur réversible : journal, tout ou rien, nettoyage des clés créées, validation du journal
-- [x] Catalogue de 31 tweaks (confidentialité, pubs, interface, Explorateur, jeu, alimentation, Windows Update, expert)
+- [x] Catalogue de 53 tweaks (confidentialité, pubs, interface, Explorateur, applis préinstallées, jeu, NVIDIA, réseau, alimentation, Windows Update, expert)
 - [x] Profils Minimal, Gaming, Confidentialité ; « Tout annuler »
 - [x] Analyse : OS, CPU, RAM, GPU et version du pilote NVIDIA, plan d'alimentation, batterie, réseau
 - [x] Constats : pilote ancien, Ethernet à 100 Mb/s, économie d'énergie sur PC fixe, Wi-Fi seul, enregistrement en arrière-plan, RAM faible
 - [x] Questionnaire et recommandations
 - [x] Helper élevé + point de restauration
-- [ ] Applis préinstallées (bloatware) : suppression via AppX, marquée « partiellement réversible » (réinstallation via winget ou le Store)
-- [ ] NVIDIA via NVAPI (MIT) : mode faible latence, gestion de l'alimentation, lecture des profils du pilote
-- [ ] Paramètres avancés des cartes réseau (économie d'énergie, interruptions), avec preuves à l'appui
-- [ ] Vérification en ligne (optionnelle) de la dernière version du pilote NVIDIA
-- [ ] Signature du code (Azure Trusted Signing) pour éviter les alertes SmartScreen et antivirus
+- [x] Refus des réglages par utilisateur quand l'élévation se fait avec un autre compte (comparaison des SID)
+- [x] Applis préinstallées : 17 applis, suppression via `PackageManager`, réinstallation via winget (identifiants Store vérifiés), marquées « partiellement réversible » et exclues des profils
+- [x] NVIDIA via NVAPI (SDK MIT) : mode faible latence, performances maximales ; retour à la valeur d'origine ou au réglage par défaut du pilote
+- [x] Cartes réseau physiques : Energy-Efficient Ethernet, Green Ethernet (Realtek), mise hors tension par Windows
+- [x] Vérification en ligne, sur demande, de la dernière version du pilote NVIDIA (WinHTTP, aucune dépendance ajoutée)
+- [ ] Signature du code : la procédure est prête (voir `docs/SIGNING.md`), elle demande un compte Azure du propriétaire du projet
 
 ## Phase 2 — Profils de contexte
 

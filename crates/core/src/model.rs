@@ -92,6 +92,9 @@ pub enum Action {
     Service(ServiceAction),
     PowerPlan(PowerPlanAction),
     SystemParameter(SystemParameterAction),
+    Appx(AppxAction),
+    NetAdapter(NetAdapterAction),
+    Nvidia(NvidiaAction),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -126,14 +129,74 @@ pub struct SystemParameterAction {
     pub value: bool,
 }
 
+/// Removes a preinstalled Store app for the current user. Undoing it reinstalls the
+/// app from the Microsoft Store, which needs internet: only partially reversible.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AppxAction {
+    /// Package name, e.g. `Microsoft.BingNews`.
+    pub package: String,
+    /// Microsoft Store product id used to reinstall it, e.g. `9WZDNCRFHVFW`.
+    pub store_id: String,
+}
+
+/// Which network adapters a [`NetAdapterAction`] applies to.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AdapterKind {
+    Ethernet,
+    Wifi,
+    All,
+}
+
+/// Sets a value in the driver key of every physical network adapter of a kind
+/// (`HKLM\SYSTEM\CurrentControlSet\Control\Class\{4d36e972-…}\NNNN`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct NetAdapterAction {
+    pub adapters: AdapterKind,
+    /// Value name, e.g. the standard advanced-property keyword `*EEE`.
+    pub name: String,
+    #[serde(flatten)]
+    pub value: RegValue,
+    /// Only touch adapters whose driver already exposes this value (advanced
+    /// properties); otherwise every adapter of the kind gets it.
+    #[serde(default)]
+    pub only_if_present: bool,
+}
+
+/// A DWORD setting of the NVIDIA driver's global profile, through NVAPI.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct NvidiaAction {
+    /// NVAPI setting id (`NvApiDriverSettings.h`).
+    pub setting: u32,
+    pub value: u32,
+}
+
 impl Action {
     /// Whether this action needs an elevated process.
     pub fn requires_admin(&self) -> bool {
         match self {
             Action::Registry(r) => r.hive == Hive::HKLM,
-            Action::Service(_) => true,
-            Action::PowerPlan(_) | Action::SystemParameter(_) => false,
+            Action::Service(_) | Action::NetAdapter(_) | Action::Nvidia(_) => true,
+            Action::PowerPlan(_) | Action::SystemParameter(_) | Action::Appx(_) => false,
         }
+    }
+
+    /// Whether the action changes the signed-in user's own settings (as opposed to
+    /// machine-wide ones). Matters when the elevated helper runs as another account.
+    pub fn per_user(&self) -> bool {
+        match self {
+            Action::Registry(r) => r.hive == Hive::HKCU,
+            Action::SystemParameter(_) | Action::Appx(_) => true,
+            Action::Service(_)
+            | Action::PowerPlan(_)
+            | Action::NetAdapter(_)
+            | Action::Nvidia(_) => false,
+        }
+    }
+
+    /// Whether CustomWin can undo this action without help from outside the PC.
+    pub fn fully_reversible(&self) -> bool {
+        !matches!(self, Action::Appx(_))
     }
 }
 
@@ -147,6 +210,9 @@ pub enum Category {
     Gaming,
     Power,
     Updates,
+    Apps,
+    Network,
+    Nvidia,
     Expert,
 }
 
@@ -208,6 +274,14 @@ pub struct Tweak {
 impl Tweak {
     pub fn requires_admin(&self) -> bool {
         self.actions.iter().any(Action::requires_admin)
+    }
+
+    pub fn fully_reversible(&self) -> bool {
+        self.actions.iter().all(Action::fully_reversible)
+    }
+
+    pub fn per_user(&self) -> bool {
+        self.actions.iter().any(Action::per_user)
     }
 
     pub fn has_tag(&self, tag: &str) -> bool {

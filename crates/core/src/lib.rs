@@ -7,6 +7,7 @@
 pub mod analysis;
 pub mod backend;
 pub mod catalog;
+pub mod drivers;
 pub mod engine;
 pub mod journal;
 pub mod model;
@@ -24,6 +25,10 @@ pub struct HelperRequest {
     /// Create a System Restore point before applying.
     #[serde(default)]
     pub restore_point: bool,
+    /// SID of the user the UI runs as. If the helper was elevated with another
+    /// account's credentials, its HKCU is that account's: per-user tweaks are refused.
+    #[serde(default)]
+    pub user_sid: Option<String>,
 }
 
 /// What the helper writes back next to the request.

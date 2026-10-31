@@ -3,7 +3,18 @@
 export type Lang = "fr" | "en";
 export type Localized = { fr: string; en: string };
 
-export type Category = "privacy" | "ads" | "interface" | "explorer" | "gaming" | "power" | "updates" | "expert";
+export type Category =
+  | "privacy"
+  | "ads"
+  | "interface"
+  | "explorer"
+  | "gaming"
+  | "power"
+  | "updates"
+  | "apps"
+  | "network"
+  | "nvidia"
+  | "expert";
 export type Risk = "safe" | "low" | "medium" | "expert";
 export type Evidence = "functional" | "measured" | "situational";
 export type Restart = "none" | "explorer" | "sign_out" | "reboot";
@@ -19,6 +30,8 @@ export interface Tweak {
   tags: string[];
   note: Localized | null;
   requires_admin: boolean;
+  /** False when undoing needs outside help (an app reinstalled from the Store). */
+  fully_reversible: boolean;
 }
 
 export interface Profile {
@@ -104,6 +117,13 @@ export interface Answers {
   goals: Goal[];
   include_expert: boolean;
   is_laptop: boolean | null;
+}
+
+export interface DriverCheck {
+  gpu: string;
+  installed: string | null;
+  latest: { version: string; release_date: string | null; details_url: string };
+  update_available: boolean;
 }
 
 export interface Recommendation {

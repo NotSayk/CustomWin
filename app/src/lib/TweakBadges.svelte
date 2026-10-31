@@ -12,6 +12,9 @@
   {#if tweak.evidence !== "functional"}
     <span class="badge accent">{t(`evidence.${tweak.evidence}`)}</span>
   {/if}
+  {#if !tweak.fully_reversible}
+    <span class="badge warn" title={t("badge.partial.hint")}>{t("badge.partial")}</span>
+  {/if}
   {#if tweak.requires_admin}
     <span class="badge">{t("badge.admin")}</span>
   {/if}

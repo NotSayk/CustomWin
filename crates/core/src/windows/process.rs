@@ -6,7 +6,11 @@ use std::process::Command;
 
 use windows::core::PCWSTR;
 use windows::Win32::Foundation::{CloseHandle, HANDLE};
-use windows::Win32::Security::{GetTokenInformation, TokenElevation, TOKEN_ELEVATION, TOKEN_QUERY};
+use windows::Win32::Foundation::{LocalFree, HLOCAL};
+use windows::Win32::Security::Authorization::ConvertSidToStringSidW;
+use windows::Win32::Security::{
+    GetTokenInformation, TokenElevation, TokenUser, TOKEN_ELEVATION, TOKEN_QUERY, TOKEN_USER,
+};
 use windows::Win32::System::Restore::*;
 use windows::Win32::System::Threading::{
     GetCurrentProcess, GetExitCodeProcess, OpenProcessToken, WaitForSingleObject, INFINITE,
@@ -31,6 +35,36 @@ pub fn data_dir() -> PathBuf {
 
 pub fn journal_path() -> PathBuf {
     data_dir().join("journal.json")
+}
+
+/// SID of the account running this process, e.g. `S-1-5-21-…-1001`.
+pub fn current_user_sid() -> Option<String> {
+    unsafe {
+        let mut token = HANDLE::default();
+        OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &mut token).ok()?;
+        let mut len = 0u32;
+        let _ = GetTokenInformation(token, TokenUser, None, 0, &mut len);
+        // u64 storage keeps TOKEN_USER aligned.
+        let mut buf = vec![0u64; (len as usize).div_ceil(8).max(1)];
+        let ok = GetTokenInformation(
+            token,
+            TokenUser,
+            Some(buf.as_mut_ptr().cast()),
+            len,
+            &mut len,
+        )
+        .is_ok();
+        let _ = CloseHandle(token);
+        if !ok {
+            return None;
+        }
+        let user = &*(buf.as_ptr() as *const TOKEN_USER);
+        let mut text = windows::core::PWSTR::null();
+        ConvertSidToStringSidW(user.User.Sid, &mut text).ok()?;
+        let sid = text.to_string().ok();
+        LocalFree(Some(HLOCAL(text.0.cast())));
+        sid
+    }
 }
 
 pub fn is_elevated() -> bool {
@@ -117,6 +151,20 @@ pub fn restart_explorer() -> Result<(), Error> {
     }
     Command::new("explorer.exe").spawn().map_err(io)?;
     Ok(())
+}
+
+/// Opens a URL in the default browser.
+pub fn open_url(url: &str) -> Result<(), Error> {
+    let verb = wide("open");
+    let file = wide(url);
+    let mut info = SHELLEXECUTEINFOW {
+        cbSize: size_of::<SHELLEXECUTEINFOW>() as u32,
+        lpVerb: PCWSTR(verb.as_ptr()),
+        lpFile: PCWSTR(file.as_ptr()),
+        nShow: windows::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL.0,
+        ..Default::default()
+    };
+    unsafe { ShellExecuteExW(&mut info) }.map_err(|e| map_err("browser", e))
 }
 
 /// Creates a System Restore point. Needs administrator rights. Windows skips it silently

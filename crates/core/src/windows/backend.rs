@@ -8,7 +8,7 @@ use windows::Win32::UI::WindowsAndMessaging::*;
 use windows_registry::{Key, Type, CURRENT_USER, LOCAL_MACHINE};
 
 use super::{map_err, wide};
-use crate::backend::{ServiceState, SystemBackend};
+use crate::backend::{NvidiaSetting, ServiceState, SystemBackend};
 use crate::model::{Hive, RegValue, StartType, SysParam};
 use crate::Error;
 
@@ -112,6 +112,15 @@ impl SystemBackend for WindowsBackend {
             hive_key(hive).remove_tree(path).map_err(ctx)?;
         }
         Ok(empty)
+    }
+
+    fn reg_subkeys(&self, hive: Hive, path: &str) -> Result<Vec<String>, Error> {
+        let key = match hive_key(hive).open(path) {
+            Ok(k) => k,
+            Err(e) if is_not_found(&e) => return Ok(Vec::new()),
+            Err(e) => return Err(map_err(path, e)),
+        };
+        Ok(key.keys().map_err(|e| map_err(path, e))?.collect())
     }
 
     fn service_query(&self, name: &str) -> Result<Option<ServiceState>, Error> {
@@ -277,6 +286,30 @@ impl SystemBackend for WindowsBackend {
                 }
             }
         }
+    }
+
+    fn appx_installed(&self, package: &str) -> Result<bool, Error> {
+        super::appx::installed(package)
+    }
+
+    fn appx_remove(&self, package: &str) -> Result<(), Error> {
+        super::appx::remove(package)
+    }
+
+    fn appx_install(&self, store_id: &str) -> Result<(), Error> {
+        super::appx::install(store_id)
+    }
+
+    fn nvidia_get(&self, setting: u32) -> Result<NvidiaSetting, Error> {
+        super::nvapi::get(setting)
+    }
+
+    fn nvidia_set(&self, setting: u32, value: u32) -> Result<(), Error> {
+        super::nvapi::set(setting, value)
+    }
+
+    fn nvidia_reset(&self, setting: u32) -> Result<(), Error> {
+        super::nvapi::reset(setting)
     }
 }
 

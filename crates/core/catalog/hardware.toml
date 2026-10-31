@@ -1,0 +1,88 @@
+# Pilotes : cartes réseau et GPU NVIDIA.
+#
+# Réseau : ces valeurs vivent dans la clé du pilote de chaque carte physique
+# (HKLM\SYSTEM\CurrentControlSet\Control\Class\{4d36e972-…}\NNNN) et ne sont relues qu'au
+# redémarrage de la carte, d'où « redémarrage requis ».
+#
+# NVIDIA : réglages du profil global du pilote via NVAPI (identifiants de
+# NvApiDriverSettings.h, SDK NVIDIA sous licence MIT).
+
+[[tweak]]
+id = "network.eee_off"
+category = "network"
+risk = "low"
+evidence = "situational"
+restart = "reboot"
+tags = ["gaming"]
+name = { fr = "Désactiver l'Ethernet économe en énergie", en = "Disable Energy-Efficient Ethernet" }
+description = { fr = "La carte ne se met plus en veille entre deux paquets (EEE, norme 802.3az) : quelques watts de plus, mais moins de risques de micro-coupures et de pics de latence.", en = "The adapter stops napping between packets (EEE, 802.3az): a few more watts, but fewer micro-drops and latency spikes." }
+
+[[tweak.action]]
+kind = "net_adapter"
+adapters = "ethernet"
+name = "*EEE"
+string = "0"
+only_if_present = true
+
+[[tweak]]
+id = "network.green_ethernet_off"
+category = "network"
+risk = "low"
+evidence = "situational"
+restart = "reboot"
+tags = ["gaming"]
+name = { fr = "Désactiver Green Ethernet (Realtek)", en = "Disable Green Ethernet (Realtek)" }
+description = { fr = "Coupe le mode d'économie d'énergie propre aux cartes Realtek, connu pour provoquer des déconnexions sur certains câbles longs.", en = "Turns off the Realtek-specific power saving mode, known to cause disconnects on some long cables." }
+
+[[tweak.action]]
+kind = "net_adapter"
+adapters = "ethernet"
+name = "EnableGreenEthernet"
+string = "0"
+only_if_present = true
+
+[[tweak]]
+id = "network.adapter_power_off_disabled"
+category = "network"
+risk = "safe"
+evidence = "functional"
+restart = "reboot"
+tags = ["gaming"]
+name = { fr = "Ne plus éteindre la carte réseau", en = "Stop turning the network adapter off" }
+description = { fr = "Décoche « Autoriser l'ordinateur à éteindre ce périphérique pour économiser l'énergie » : évite les pertes de connexion au réveil ou après une longue inactivité.", en = "Unchecks \"Allow the computer to turn off this device to save power\": avoids lost connections after sleep or long idle periods." }
+
+[[tweak.action]]
+kind = "net_adapter"
+adapters = "all"
+name = "PnPCapabilities"
+dword = 24
+
+[[tweak]]
+id = "nvidia.low_latency"
+category = "nvidia"
+risk = "safe"
+evidence = "situational"
+tags = ["gaming"]
+name = { fr = "Mode faible latence NVIDIA", en = "NVIDIA Low Latency Mode" }
+description = { fr = "Le pilote ne prépare plus qu'une image à l'avance : moins de latence entre la souris et l'écran quand le GPU est saturé.", en = "The driver queues only one frame ahead: less latency between mouse and screen when the GPU is maxed out." }
+note = { fr = "Sans effet dans les jeux qui utilisent NVIDIA Reflex, qui fait mieux. Peut réduire légèrement les FPS quand le processeur est le facteur limitant.", en = "No effect in games using NVIDIA Reflex, which does better. Can slightly lower FPS when the CPU is the bottleneck." }
+
+[[tweak.action]]
+kind = "nvidia"
+setting = 0x007BA09E  # PRERENDERLIMIT_ID
+value = 1
+
+[[tweak]]
+id = "nvidia.prefer_max_performance"
+category = "nvidia"
+risk = "low"
+evidence = "situational"
+tags = ["gaming", "performance", "desktop-only"]
+name = { fr = "GPU en performances maximales", en = "GPU at maximum performance" }
+description = { fr = "Le pilote garde le GPU à haute fréquence au lieu de la baisser entre deux scènes : évite les chutes d'images quand la charge varie.", en = "The driver keeps the GPU clocked high instead of lowering it between scenes: avoids frame drops when the load varies." }
+note = { fr = "Réglage global : le GPU consomme plus, même sur le bureau. À réserver aux PC fixes.", en = "Global setting: the GPU draws more power, even on the desktop. Best kept to desktop PCs." }
+
+[[tweak.action]]
+kind = "nvidia"
+setting = 0x1057EB71  # PREFERRED_PSTATE_ID
+value = 1             # PREFERRED_PSTATE_PREFER_MAX

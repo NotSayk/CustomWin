@@ -9,6 +9,7 @@ use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use customwin_core::analysis::{self, Answers, Insight, Recommendation, SystemInfo};
+use customwin_core::drivers::DriverCheck;
 use customwin_core::engine::{self, TweakState};
 use customwin_core::journal::Journal;
 use customwin_core::windows::{self as win, WindowsBackend};
@@ -121,6 +122,7 @@ async fn run_operation(
                 operation,
                 journal_path,
                 restore_point,
+                user_sid: win::current_user_sid(),
             });
         }
 
@@ -181,6 +183,30 @@ fn run_through_helper(request: HelperRequest) -> CmdResult<RunResult> {
     }
 }
 
+/// Online, on demand only: compares installed NVIDIA drivers with NVIDIA's latest.
+#[tauri::command]
+async fn check_drivers(state: State<'_, AppState>) -> CmdResult<Vec<DriverCheck>> {
+    let cached = state.info.lock().map_err(err)?.clone();
+    blocking(move || {
+        let info = cached.unwrap_or_else(win::collect_system_info);
+        win::check_nvidia_drivers(&info.gpus).map_err(err)
+    })
+    .await
+}
+
+/// Opens an NVIDIA page in the default browser. Only nvidia.com links are accepted.
+#[tauri::command]
+async fn open_nvidia_page(url: String) -> CmdResult<()> {
+    let safe = url.starts_with("https://www.nvidia.com/")
+        && url
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || "/:.-_?=&%".contains(c));
+    if !safe {
+        return Err("refused URL".into());
+    }
+    blocking(move || win::open_url(&url).map_err(err)).await
+}
+
 #[tauri::command]
 async fn restart_explorer() -> CmdResult<()> {
     blocking(|| win::restart_explorer().map_err(err)).await
@@ -201,6 +227,8 @@ fn main() {
             analyze,
             recommend,
             run_operation,
+            check_drivers,
+            open_nvidia_page,
             restart_explorer
         ])
         .run(tauri::generate_context!())

@@ -4,7 +4,7 @@
   import { i18n, loc, t } from "../lib/i18n.svelte";
   import { run, store, tweakById } from "../lib/store.svelte";
   import TweakBadges from "../lib/TweakBadges.svelte";
-  import type { Analysis, Goal, Recommendation } from "../lib/types";
+  import type { Analysis, DriverCheck, Goal, Recommendation } from "../lib/types";
 
   let analysis = $state<Analysis | null>(null);
   let scanning = $state(false);
@@ -16,6 +16,23 @@
   let restorePoint = $state(true);
 
   let recs = $state<Recommendation[]>([]);
+
+  // Online driver check: only runs when the user clicks.
+  let drivers = $state<DriverCheck[] | null>(null);
+  let checkingDrivers = $state(false);
+  let driverError = $state<string | null>(null);
+
+  async function checkDrivers() {
+    checkingDrivers = true;
+    driverError = null;
+    try {
+      drivers = await api.checkDrivers();
+    } catch (e) {
+      driverError = String(e);
+    } finally {
+      checkingDrivers = false;
+    }
+  }
   let unchecked = $state<Set<string>>(new Set());
 
   const allGoals: Goal[] = ["gaming", "performance", "privacy", "clean"];
@@ -97,6 +114,28 @@
             {#if gpu.driver_display_version}· {t("hw.driver")} {gpu.driver_display_version}{/if}
             {#if gpu.driver_date}({gpu.driver_date}){/if}
           </span>
+          {#if gpu.vendor === "nvidia"}
+            {@const check = drivers?.find((d) => d.gpu === gpu.name)}
+            <div class="driver">
+              {#if check}
+                {#if check.update_available}
+                  <span class="warn">{t("drivers.update", { v: check.latest.version })}</span>
+                  {#if check.latest.details_url}
+                    <button class="link" onclick={() => api.openNvidiaPage(check.latest.details_url)}>{t("drivers.open")}</button>
+                  {/if}
+                {:else}
+                  <span class="ok">{t("drivers.uptodate", { v: check.latest.version })}</span>
+                {/if}
+              {:else if drivers}
+                <span class="muted">{t("drivers.not_found")}</span>
+              {:else}
+                <button class="small-btn" title={t("drivers.privacy")} disabled={checkingDrivers} onclick={checkDrivers}>
+                  {checkingDrivers ? t("drivers.checking") : t("drivers.check")}
+                </button>
+              {/if}
+              {#if driverError}<span class="warn">{driverError}</span>{/if}
+            </div>
+          {/if}
         </div>
       {/each}
       <div class="card spec">
@@ -216,6 +255,32 @@
   }
   .spec strong {
     overflow-wrap: anywhere;
+  }
+  .driver {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    margin-top: 10px;
+    font-size: 13px;
+  }
+  .driver .warn {
+    color: var(--warn);
+  }
+  .driver .ok {
+    color: var(--ok);
+  }
+  .small-btn {
+    padding: 4px 10px;
+    font-size: 12.5px;
+  }
+  .link {
+    border: none;
+    background: none;
+    padding: 0;
+    color: var(--accent);
+    text-decoration: underline;
+    font-size: 13px;
   }
   .label {
     font-size: 12px;

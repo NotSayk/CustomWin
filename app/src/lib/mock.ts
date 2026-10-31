@@ -117,7 +117,18 @@ export async function invoke<T>(cmd: string, args: Record<string, unknown> = {})
       return { results: ids.map((tweak_id) => ({ tweak_id, error: null })), warnings: [] } satisfies RunResult as T;
     }
     case "restart_explorer":
+    case "open_nvidia_page":
       return undefined as T;
+    case "check_drivers":
+      await delay(700);
+      return [
+        {
+          gpu: "NVIDIA GeForce RTX 4070",
+          installed: "560.94",
+          latest: { version: "621.01", release_date: "2026-10-21", details_url: "https://www.nvidia.com/en-us/drivers/details/282412/" },
+          update_available: true,
+        },
+      ] as T;
     default:
       throw new Error(`mock: unknown command ${cmd}`);
   }

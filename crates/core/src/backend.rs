@@ -15,6 +15,8 @@ pub trait SystemBackend {
     fn reg_delete_value(&self, hive: Hive, path: &str, name: &str) -> Result<(), Error>;
     /// Deletes a key only if it has no values and no subkeys. Returns whether it was deleted.
     fn reg_delete_key_if_empty(&self, hive: Hive, path: &str) -> Result<bool, Error>;
+    /// Names of the direct subkeys; empty if the key does not exist.
+    fn reg_subkeys(&self, hive: Hive, path: &str) -> Result<Vec<String>, Error>;
 
     /// `None` if the service does not exist.
     fn service_query(&self, name: &str) -> Result<Option<ServiceState>, Error>;
@@ -28,6 +30,27 @@ pub trait SystemBackend {
 
     fn sysparam_get(&self, param: SysParam) -> Result<bool, Error>;
     fn sysparam_set(&self, param: SysParam, value: bool) -> Result<(), Error>;
+
+    /// Whether a Store app package is installed for the current user.
+    fn appx_installed(&self, package: &str) -> Result<bool, Error>;
+    fn appx_remove(&self, package: &str) -> Result<(), Error>;
+    /// Reinstalls an app from the Microsoft Store.
+    fn appx_install(&self, store_id: &str) -> Result<(), Error>;
+
+    /// A DWORD setting of the NVIDIA global profile. `Error::Unavailable` without an
+    /// NVIDIA driver.
+    fn nvidia_get(&self, setting: u32) -> Result<NvidiaSetting, Error>;
+    fn nvidia_set(&self, setting: u32, value: u32) -> Result<(), Error>;
+    /// Removes the user value so the driver default applies again.
+    fn nvidia_reset(&self, setting: u32) -> Result<(), Error>;
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct NvidiaSetting {
+    /// Effective value; `None` if the driver does not report one.
+    pub value: Option<u32>,
+    /// Whether the value was set by the user (as opposed to the driver default).
+    pub user_set: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -61,6 +84,12 @@ pub mod mock {
         pub sysparams: RefCell<HashMap<SysParam, bool>>,
         /// Any registry write whose path contains this string fails.
         pub fail_writes_containing: RefCell<Option<String>>,
+        /// Installed Store packages.
+        pub appx: RefCell<BTreeSet<String>>,
+        /// Store id → package it installs.
+        pub store: RefCell<HashMap<String, String>>,
+        /// `None`: no NVIDIA driver. Otherwise user-set values of the global profile.
+        pub nvidia: RefCell<Option<HashMap<u32, u32>>>,
     }
 
     fn norm(s: &str) -> String {
@@ -102,6 +131,19 @@ pub mod mock {
 
         pub fn key_count(&self) -> usize {
             self.keys.borrow().len()
+        }
+
+        /// Adds a network adapter driver key (`*IfType` 6 = Ethernet, 71 = Wi-Fi).
+        pub fn add_adapter(&self, instance: &str, if_type: u32, physical: bool) {
+            let path = format!(r"{}\{instance}", crate::engine::NET_CLASS);
+            self.set(Hive::HKLM, &path, "*IfType", RegValue::Dword(if_type));
+            let characteristics = if physical { 0x84 } else { 0x1 };
+            self.set(
+                Hive::HKLM,
+                &path,
+                "Characteristics",
+                RegValue::Dword(characteristics),
+            );
         }
     }
 
@@ -166,6 +208,18 @@ pub mod mock {
             Ok(self.keys.borrow_mut().remove(&(hive, p)))
         }
 
+        fn reg_subkeys(&self, hive: Hive, path: &str) -> Result<Vec<String>, Error> {
+            let prefix = format!("{}\\", norm(path));
+            Ok(self
+                .keys
+                .borrow()
+                .iter()
+                .filter(|(h, k)| *h == hive && k.starts_with(&prefix))
+                .map(|(_, k)| k[prefix.len()..].to_string())
+                .filter(|rest| !rest.contains('\\'))
+                .collect())
+        }
+
         fn service_query(&self, name: &str) -> Result<Option<ServiceState>, Error> {
             Ok(self.services.borrow().get(&norm(name)).copied())
         }
@@ -214,6 +268,60 @@ pub mod mock {
 
         fn sysparam_set(&self, param: SysParam, value: bool) -> Result<(), Error> {
             self.sysparams.borrow_mut().insert(param, value);
+            Ok(())
+        }
+
+        fn appx_installed(&self, package: &str) -> Result<bool, Error> {
+            Ok(self.appx.borrow().contains(package))
+        }
+
+        fn appx_remove(&self, package: &str) -> Result<(), Error> {
+            self.appx.borrow_mut().remove(package);
+            Ok(())
+        }
+
+        fn appx_install(&self, store_id: &str) -> Result<(), Error> {
+            match self.store.borrow().get(store_id) {
+                Some(p) => {
+                    self.appx.borrow_mut().insert(p.clone());
+                    Ok(())
+                }
+                None => Err(Error::System(format!("{store_id} not found in the Store"))),
+            }
+        }
+
+        fn nvidia_get(&self, setting: u32) -> Result<NvidiaSetting, Error> {
+            let nv = self.nvidia.borrow();
+            let nv = nv
+                .as_ref()
+                .ok_or_else(|| Error::Unavailable("no NVIDIA driver".into()))?;
+            Ok(match nv.get(&setting) {
+                Some(v) => NvidiaSetting {
+                    value: Some(*v),
+                    user_set: true,
+                },
+                None => NvidiaSetting {
+                    value: Some(0),
+                    user_set: false,
+                },
+            })
+        }
+
+        fn nvidia_set(&self, setting: u32, value: u32) -> Result<(), Error> {
+            let mut nv = self.nvidia.borrow_mut();
+            let nv = nv
+                .as_mut()
+                .ok_or_else(|| Error::Unavailable("no NVIDIA driver".into()))?;
+            nv.insert(setting, value);
+            Ok(())
+        }
+
+        fn nvidia_reset(&self, setting: u32) -> Result<(), Error> {
+            let mut nv = self.nvidia.borrow_mut();
+            let nv = nv
+                .as_mut()
+                .ok_or_else(|| Error::Unavailable("no NVIDIA driver".into()))?;
+            nv.remove(&setting);
             Ok(())
         }
     }

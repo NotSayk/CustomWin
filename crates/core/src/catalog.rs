@@ -12,6 +12,8 @@ const SOURCES: &[(&str, &str)] = &[
     ("ads.toml", include_str!("../catalog/ads.toml")),
     ("interface.toml", include_str!("../catalog/interface.toml")),
     ("gaming.toml", include_str!("../catalog/gaming.toml")),
+    ("hardware.toml", include_str!("../catalog/hardware.toml")),
+    ("apps.toml", include_str!("../catalog/apps.toml")),
     ("expert.toml", include_str!("../catalog/expert.toml")),
     ("profiles.toml", include_str!("../catalog/profiles.toml")),
 ];
@@ -59,6 +61,7 @@ impl Catalog {
                 .map(|t| TweakView {
                     tweak: t,
                     requires_admin: t.requires_admin(),
+                    fully_reversible: t.fully_reversible(),
                 })
                 .collect(),
             profiles: &self.profiles,
@@ -108,6 +111,23 @@ impl Catalog {
                             t.id, p.scheme
                         ));
                     }
+                    // These strings end up in Store and PowerShell calls: keep them to a
+                    // strict alphabet so they can never be read as anything else.
+                    Action::Appx(a)
+                        if !is_package_name(&a.package) || !is_store_id(&a.store_id) =>
+                    {
+                        return bad(format!(
+                            "tweak `{}`: malformed app package or store id",
+                            t.id
+                        ));
+                    }
+                    Action::NetAdapter(n)
+                        if n.name.is_empty()
+                            || n.name.contains('\\')
+                            || matches!(n.value, crate::model::RegValue::Raw { .. }) =>
+                    {
+                        return bad(format!("tweak `{}`: malformed adapter value", t.id));
+                    }
                     _ => {}
                 }
             }
@@ -120,6 +140,12 @@ impl Catalog {
             for id in &p.tweaks {
                 match self.tweak(id) {
                     None => return bad(format!("profile `{}` lists unknown tweak `{id}`", p.id)),
+                    Some(t) if !t.fully_reversible() => {
+                        return bad(format!(
+                            "profile `{}` must not contain partially reversible tweak `{id}`",
+                            p.id
+                        ))
+                    }
                     Some(t) if t.risk == Risk::Expert => {
                         return bad(format!(
                             "profile `{}` must not contain expert tweak `{id}`",
@@ -139,12 +165,28 @@ pub struct TweakView<'a> {
     #[serde(flatten)]
     pub tweak: &'a Tweak,
     pub requires_admin: bool,
+    pub fully_reversible: bool,
 }
 
 #[derive(Debug, Serialize)]
 pub struct CatalogView<'a> {
     pub tweaks: Vec<TweakView<'a>>,
     pub profiles: &'a [Profile],
+}
+
+/// `Microsoft.BingNews`, `Clipchamp.Clipchamp`, `MSTeams`.
+pub(crate) fn is_package_name(s: &str) -> bool {
+    !s.is_empty()
+        && !s.starts_with('.')
+        && s.len() <= 64
+        && s.chars().all(|c| c.is_ascii_alphanumeric() || c == '.')
+}
+
+/// `9WZDNCRFHVFW`, `XP8BT8DW290MPQ`.
+pub(crate) fn is_store_id(s: &str) -> bool {
+    (12..=14).contains(&s.len())
+        && s.chars()
+            .all(|c| c.is_ascii_uppercase() || c.is_ascii_digit())
 }
 
 /// `8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c`
@@ -203,6 +245,9 @@ mod tests {
             Gaming => "gaming",
             Power => "power",
             Updates => "updates",
+            Apps => "apps",
+            Network => "network",
+            Nvidia => "nvidia",
             Expert => "expert",
         }
     }
@@ -246,6 +291,16 @@ mod tests {
             tweaks = ["expert.x"]
         "#;
         assert!(Catalog::from_sources(&[("t.toml", src)]).is_err());
+    }
+
+    #[test]
+    fn package_and_store_id_checks() {
+        assert!(is_package_name("Microsoft.BingNews"));
+        assert!(!is_package_name("Microsoft.Bing'; rm"));
+        assert!(is_package_name("MSTeams"));
+        assert!(!is_package_name("") && !is_package_name(".hidden"));
+        assert!(is_store_id("9WZDNCRFHVFW") && is_store_id("XP8BT8DW290MPQ"));
+        assert!(!is_store_id("9wzdncrfhvfw") && !is_store_id("9WZ"));
     }
 
     #[test]

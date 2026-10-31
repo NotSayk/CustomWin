@@ -2,7 +2,16 @@
 // Outside Tauri (plain `npm run dev` in a browser) it falls back to an in-memory mock so
 // the interface can be worked on from any OS.
 
-import type { Analysis, Answers, CatalogView, Operation, Recommendation, RunResult, StatesView } from "./types";
+import type {
+  Analysis,
+  Answers,
+  CatalogView,
+  DriverCheck,
+  Operation,
+  Recommendation,
+  RunResult,
+  StatesView,
+} from "./types";
 
 type Invoke = <T>(cmd: string, args?: Record<string, unknown>) => Promise<T>;
 
@@ -30,4 +39,7 @@ export const api = {
   recommend: (answers: Answers) => call<Recommendation[]>("recommend", { answers }),
   run: (operation: Operation, restorePoint: boolean) => call<RunResult>("run_operation", { operation, restorePoint }),
   restartExplorer: () => call<void>("restart_explorer"),
+  /** Goes online: only on an explicit click. */
+  checkDrivers: () => call<DriverCheck[]>("check_drivers"),
+  openNvidiaPage: (url: string) => call<void>("open_nvidia_page", { url }),
 };

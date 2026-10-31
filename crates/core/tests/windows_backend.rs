@@ -122,6 +122,16 @@ fn reading_system_state_does_not_fail() {
         let _ = b.sysparam_get(p);
     }
     assert_eq!(b.service_query("CustomWinNoSuchService").unwrap(), None);
+    // No NVIDIA driver must read as "unavailable", never as a crash or a bogus value.
+    match b.nvidia_get(0x007B_A09E) {
+        Ok(_) | Err(customwin_core::Error::Unavailable(_)) => {}
+        Err(e) => panic!("unexpected NVAPI error: {e}"),
+    }
+    let _ = b.appx_installed("Microsoft.BingNews");
+    let _ = b
+        .reg_subkeys(Hive::HKLM, customwin_core::engine::NET_CLASS)
+        .unwrap();
+    assert!(customwin_core::windows::current_user_sid().is_some_and(|s| s.starts_with("S-1-")));
     let info = collect_system_info();
     assert!(info.cpu.logical_cores > 0);
 }

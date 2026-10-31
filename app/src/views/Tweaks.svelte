@@ -8,7 +8,19 @@
   let query = $state("");
   let showExpert = $state(false);
 
-  const order: Category[] = ["privacy", "ads", "interface", "explorer", "gaming", "power", "updates", "expert"];
+  const order: Category[] = [
+    "privacy",
+    "ads",
+    "interface",
+    "explorer",
+    "apps",
+    "gaming",
+    "nvidia",
+    "network",
+    "power",
+    "updates",
+    "expert",
+  ];
 
   const groups = $derived.by(() => {
     const q = query.trim().toLowerCase();

@@ -18,8 +18,53 @@ use serde::{Deserialize, Serialize};
 use crate::backend::{key_prefixes, SystemBackend};
 use crate::catalog::Catalog;
 use crate::journal::{Journal, JournalEntry, PriorState};
-use crate::model::{Action, Tweak};
+use crate::model::{Action, AdapterKind, Hive, NetAdapterAction, Tweak};
 use crate::Error;
+
+/// Driver keys of the network adapter class.
+pub const NET_CLASS: &str =
+    r"SYSTEM\CurrentControlSet\Control\Class\{4d36e972-e325-11ce-bfc1-08002be10318}";
+
+/// Instance subkeys (`0000`, `0001`…) of the physical adapters a [`NetAdapterAction`]
+/// targets. `NCF_PHYSICAL` (0x4) in `Characteristics` rules out virtual adapters (VPN,
+/// Hyper-V, loopback); `*IfType` tells Ethernet (6) from Wi-Fi (71).
+pub fn net_targets(b: &dyn SystemBackend, n: &NetAdapterAction) -> Result<Vec<String>, Error> {
+    let dword = |path: &str, name: &str| -> Result<Option<u32>, Error> {
+        Ok(match b.reg_read(Hive::HKLM, path, name)? {
+            Some(crate::model::RegValue::Dword(v)) => Some(v),
+            _ => None,
+        })
+    };
+    let mut out = Vec::new();
+    for instance in b.reg_subkeys(Hive::HKLM, NET_CLASS)? {
+        if !is_instance(&instance) {
+            continue;
+        }
+        let path = format!(r"{NET_CLASS}\{instance}");
+        let physical = dword(&path, "Characteristics")?.is_some_and(|c| c & 0x4 != 0);
+        let kind_ok = matches!(
+            (n.adapters, dword(&path, "*IfType")?),
+            (AdapterKind::All, Some(6 | 71))
+                | (AdapterKind::Ethernet, Some(6))
+                | (AdapterKind::Wifi, Some(71))
+        );
+        if physical
+            && kind_ok
+            && (!n.only_if_present || b.reg_read(Hive::HKLM, &path, &n.name)?.is_some())
+        {
+            out.push(instance);
+        }
+    }
+    if out.is_empty() {
+        return Err(Error::Unavailable("no matching network adapter".into()));
+    }
+    Ok(out)
+}
+
+/// `0000`–`9999`: a network adapter instance key, nothing else.
+fn is_instance(s: &str) -> bool {
+    s.len() == 4 && s.bytes().all(|c| c.is_ascii_digit())
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "state", content = "reason", rename_all = "snake_case")]
@@ -57,6 +102,16 @@ fn action_matches(b: &dyn SystemBackend, a: &Action) -> Result<bool, Error> {
         },
         Action::PowerPlan(p) => b.power_active_scheme()?.eq_ignore_ascii_case(&p.scheme),
         Action::SystemParameter(p) => b.sysparam_get(p.param)? == p.value,
+        Action::Appx(a) => !b.appx_installed(&a.package)?,
+        Action::NetAdapter(n) => {
+            let mut all = true;
+            for instance in net_targets(b, n)? {
+                let path = format!(r"{NET_CLASS}\{instance}");
+                all &= b.reg_read(Hive::HKLM, &path, &n.name)?.as_ref() == Some(&n.value);
+            }
+            all
+        }
+        Action::Nvidia(nv) => b.nvidia_get(nv.setting)?.value == Some(nv.value),
     })
 }
 
@@ -95,6 +150,30 @@ fn capture(b: &dyn SystemBackend, a: &Action) -> Result<PriorState, Error> {
             param: p.param,
             value: b.sysparam_get(p.param)?,
         },
+        Action::Appx(a) => PriorState::Appx {
+            package: a.package.clone(),
+            store_id: a.store_id.clone(),
+            was_installed: b.appx_installed(&a.package)?,
+        },
+        Action::NetAdapter(n) => {
+            let mut values = Vec::new();
+            for instance in net_targets(b, n)? {
+                let path = format!(r"{NET_CLASS}\{instance}");
+                let v = b.reg_read(Hive::HKLM, &path, &n.name)?;
+                values.push((instance, v));
+            }
+            PriorState::NetAdapter {
+                name: n.name.clone(),
+                values,
+            }
+        }
+        Action::Nvidia(nv) => {
+            let current = b.nvidia_get(nv.setting)?;
+            PriorState::Nvidia {
+                setting: nv.setting,
+                value: current.value.filter(|_| current.user_set),
+            }
+        }
     })
 }
 
@@ -110,6 +189,24 @@ fn execute(b: &dyn SystemBackend, a: &Action) -> Result<(), Error> {
         }
         Action::PowerPlan(p) => b.power_set_active_scheme(&p.scheme),
         Action::SystemParameter(p) => b.sysparam_set(p.param, p.value),
+        Action::Appx(a) => {
+            if b.appx_installed(&a.package)? {
+                b.appx_remove(&a.package)?;
+            }
+            Ok(())
+        }
+        Action::NetAdapter(n) => {
+            for instance in net_targets(b, n)? {
+                b.reg_write(
+                    Hive::HKLM,
+                    &format!(r"{NET_CLASS}\{instance}"),
+                    &n.name,
+                    &n.value,
+                )?;
+            }
+            Ok(())
+        }
+        Action::Nvidia(nv) => b.nvidia_set(nv.setting, nv.value),
     }
 }
 
@@ -153,6 +250,30 @@ fn restore(b: &dyn SystemBackend, prior: &PriorState) -> Result<(), Error> {
         }
         PriorState::PowerPlan { scheme } => b.power_set_active_scheme(scheme),
         PriorState::SystemParameter { param, value } => b.sysparam_set(*param, *value),
+        PriorState::Appx {
+            package,
+            store_id,
+            was_installed,
+        } => {
+            if *was_installed && !b.appx_installed(package)? {
+                b.appx_install(store_id)?;
+            }
+            Ok(())
+        }
+        PriorState::NetAdapter { name, values } => {
+            for (instance, value) in values {
+                let path = format!(r"{NET_CLASS}\{instance}");
+                match value {
+                    Some(v) => b.reg_write(Hive::HKLM, &path, name, v)?,
+                    None => b.reg_delete_value(Hive::HKLM, &path, name)?,
+                }
+            }
+            Ok(())
+        }
+        PriorState::Nvidia { setting, value } => match value {
+            Some(v) => b.nvidia_set(*setting, *v),
+            None => b.nvidia_reset(*setting),
+        },
     }
 }
 
@@ -267,6 +388,16 @@ pub fn validate_entry(tweak: &Tweak, entry: &JournalEntry) -> Result<(), Error> 
             (PriorState::SystemParameter { param, .. }, Action::SystemParameter(p)) => {
                 *param == p.param
             }
+            (
+                PriorState::Appx {
+                    package, store_id, ..
+                },
+                Action::Appx(a),
+            ) => *package == a.package && *store_id == a.store_id,
+            (PriorState::NetAdapter { name, values }, Action::NetAdapter(n)) => {
+                name.eq_ignore_ascii_case(&n.name) && values.iter().all(|(i, _)| is_instance(i))
+            }
+            (PriorState::Nvidia { setting, .. }, Action::Nvidia(nv)) => *setting == nv.setting,
             _ => false,
         };
         if !ok {
@@ -339,6 +470,15 @@ pub fn run(
                 .collect()
         }
     })
+}
+
+/// Whether running `op` changes the signed-in user's own settings.
+pub fn touches_user_settings(catalog: &Catalog, journal: &Journal, op: &Operation) -> bool {
+    let per_user = |id: &String| catalog.tweak(id).is_some_and(Tweak::per_user);
+    match op {
+        Operation::Apply(ids) | Operation::Revert(ids) => ids.iter().any(per_user),
+        Operation::RevertAll => journal.entries.iter().any(|e| per_user(&e.tweak_id)),
+    }
 }
 
 /// Whether running `op` needs an elevated process.
@@ -528,6 +668,157 @@ mod tests {
             "381b4222-f694-41f0-9685-ff5bb260df2e"
         );
         assert!(b.sysparam_get(SysParam::WindowAnimation).unwrap());
+    }
+
+    #[test]
+    fn appx_is_removed_and_reinstalled_from_the_store() {
+        let c = catalog();
+        let b = MockBackend::new();
+        b.appx.borrow_mut().insert("Microsoft.BingNews".into());
+        b.store
+            .borrow_mut()
+            .insert("9WZDNCRFHVFW".into(), "Microsoft.BingNews".into());
+        let t = c.tweak("apps.news").unwrap();
+        assert!(!t.fully_reversible());
+        let mut j = Journal::default();
+
+        assert_eq!(state(&b, t), TweakState::NotApplied);
+        apply(&b, t, &mut j, &mut no_persist()).unwrap();
+        assert!(!b.appx_installed("Microsoft.BingNews").unwrap());
+        assert_eq!(state(&b, t), TweakState::Applied);
+        revert(&b, &c, &t.id, &mut j, &mut no_persist()).unwrap();
+        assert!(b.appx_installed("Microsoft.BingNews").unwrap());
+    }
+
+    #[test]
+    fn absent_app_needs_no_reinstall() {
+        let c = catalog();
+        let b = MockBackend::new(); // store is empty: an install attempt would fail
+        let t = c.tweak("apps.news").unwrap();
+        let mut j = Journal::default();
+        apply(&b, t, &mut j, &mut no_persist()).unwrap();
+        revert(&b, &c, &t.id, &mut j, &mut no_persist()).unwrap();
+    }
+
+    #[test]
+    fn net_adapter_targets_only_matching_physical_adapters() {
+        let c = catalog();
+        let b = MockBackend::new();
+        b.add_adapter("0001", 6, true); // Ethernet, exposes *EEE
+        b.add_adapter("0002", 6, true); // Ethernet without EEE support
+        b.add_adapter("0003", 71, true); // Wi-Fi
+        b.add_adapter("0004", 6, false); // virtual (Hyper-V…)
+        let eth = |i: &str| format!(r"{NET_CLASS}\{i}");
+        b.set(
+            Hive::HKLM,
+            &eth("0001"),
+            "*EEE",
+            RegValue::String("1".into()),
+        );
+        b.set(
+            Hive::HKLM,
+            &eth("0004"),
+            "*EEE",
+            RegValue::String("1".into()),
+        );
+        b.set(
+            Hive::HKLM,
+            NET_CLASS,
+            "Class",
+            RegValue::String("Net".into()),
+        );
+        b.set(
+            Hive::HKLM,
+            &format!(r"{NET_CLASS}\Properties"),
+            "x",
+            RegValue::Dword(1),
+        );
+
+        let mut j = Journal::default();
+        let eee = c.tweak("network.eee_off").unwrap();
+        apply(&b, eee, &mut j, &mut no_persist()).unwrap();
+        assert_eq!(
+            b.get(Hive::HKLM, &eth("0001"), "*EEE"),
+            Some(RegValue::String("0".into()))
+        );
+        assert_eq!(b.get(Hive::HKLM, &eth("0002"), "*EEE"), None);
+        assert_eq!(
+            b.get(Hive::HKLM, &eth("0004"), "*EEE"),
+            Some(RegValue::String("1".into()))
+        );
+
+        let pnp = c.tweak("network.adapter_power_off_disabled").unwrap();
+        apply(&b, pnp, &mut j, &mut no_persist()).unwrap();
+        for i in ["0001", "0002", "0003"] {
+            assert_eq!(
+                b.get(Hive::HKLM, &eth(i), "PnPCapabilities"),
+                Some(RegValue::Dword(24))
+            );
+        }
+        assert_eq!(b.get(Hive::HKLM, &eth("0004"), "PnPCapabilities"), None);
+
+        revert(&b, &c, &pnp.id, &mut j, &mut no_persist()).unwrap();
+        revert(&b, &c, &eee.id, &mut j, &mut no_persist()).unwrap();
+        assert_eq!(
+            b.get(Hive::HKLM, &eth("0001"), "*EEE"),
+            Some(RegValue::String("1".into()))
+        );
+        assert_eq!(b.get(Hive::HKLM, &eth("0002"), "PnPCapabilities"), None);
+
+        let green = c.tweak("network.green_ethernet_off").unwrap();
+        assert!(
+            matches!(state(&b, green), TweakState::Unavailable(_)),
+            "no Realtek adapter"
+        );
+    }
+
+    #[test]
+    fn nvidia_setting_restores_user_value_or_default() {
+        let c = catalog();
+        let b = MockBackend::new();
+        let t = c.tweak("nvidia.low_latency").unwrap();
+        assert!(
+            matches!(state(&b, t), TweakState::Unavailable(_)),
+            "no NVIDIA GPU"
+        );
+
+        *b.nvidia.borrow_mut() = Some(Default::default());
+        let mut j = Journal::default();
+        apply(&b, t, &mut j, &mut no_persist()).unwrap();
+        assert_eq!(state(&b, t), TweakState::Applied);
+        revert(&b, &c, &t.id, &mut j, &mut no_persist()).unwrap();
+        assert!(
+            b.nvidia.borrow().as_ref().unwrap().is_empty(),
+            "back to driver default"
+        );
+
+        b.nvidia
+            .borrow_mut()
+            .as_mut()
+            .unwrap()
+            .insert(0x007BA09E, 3);
+        apply(&b, t, &mut j, &mut no_persist()).unwrap();
+        revert(&b, &c, &t.id, &mut j, &mut no_persist()).unwrap();
+        assert_eq!(b.nvidia.borrow().as_ref().unwrap()[&0x007BA09E], 3);
+    }
+
+    #[test]
+    fn tampered_net_adapter_journal_is_refused() {
+        let c = catalog();
+        let b = MockBackend::new();
+        let mut j = Journal::default();
+        j.entries.push(JournalEntry {
+            tweak_id: "network.eee_off".into(),
+            applied_at: 0,
+            prior: vec![PriorState::NetAdapter {
+                name: "*EEE".into(),
+                values: vec![(
+                    r"..\..\Services\Evil".into(),
+                    Some(RegValue::String("x".into())),
+                )],
+            }],
+        });
+        assert!(revert(&b, &c, "network.eee_off", &mut j, &mut no_persist()).is_err());
     }
 
     #[test]

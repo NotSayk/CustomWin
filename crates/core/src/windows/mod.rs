@@ -1,13 +1,18 @@
 //! Windows-only implementation: the real system backend, hardware probes and process
 //! helpers.
 
+mod appx;
 mod backend;
+mod nvapi;
+mod online;
 mod process;
 mod sysinfo;
 
 pub use backend::WindowsBackend;
+pub use online::check_nvidia_drivers;
 pub use process::{
-    create_restore_point, data_dir, is_elevated, journal_path, restart_explorer, run_elevated,
+    create_restore_point, current_user_sid, data_dir, is_elevated, journal_path, open_url,
+    restart_explorer, run_elevated,
 };
 pub use sysinfo::collect_system_info;
 

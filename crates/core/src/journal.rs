@@ -38,6 +38,21 @@ pub enum PriorState {
         param: SysParam,
         value: bool,
     },
+    Appx {
+        package: String,
+        store_id: String,
+        was_installed: bool,
+    },
+    NetAdapter {
+        name: String,
+        /// Adapter instance (`0001`) → original value, `None` if it did not exist.
+        values: Vec<(String, Option<RegValue>)>,
+    },
+    Nvidia {
+        setting: u32,
+        /// `None`: the driver default applied (no user value).
+        value: Option<u32>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
