@@ -18,11 +18,12 @@ use windows::Win32::System::Power::{
     GetSystemPowerStatus, RegisterPowerSettingNotification, POWERBROADCAST_SETTING,
     SYSTEM_POWER_STATUS,
 };
+use windows::Win32::System::ProcessStatus::K32EmptyWorkingSet;
 use windows::Win32::System::RemoteDesktop::{
     WTSRegisterSessionNotification, NOTIFY_FOR_THIS_SESSION,
 };
 use windows::Win32::System::SystemServices::GUID_CONSOLE_DISPLAY_STATE;
-use windows::Win32::System::Threading::CreateMutexW;
+use windows::Win32::System::Threading::{CreateMutexW, GetCurrentProcess};
 use windows::Win32::UI::HiDpi::{
     SetProcessDpiAwarenessContext, DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2,
 };
@@ -38,10 +39,14 @@ static RELOAD: AtomicBool = AtomicBool::new(false);
 static QUIT: AtomicBool = AtomicBool::new(false);
 static LOCKED: AtomicBool = AtomicBool::new(false);
 static DISPLAY_OFF: AtomicBool = AtomicBool::new(false);
+static UNLOAD: AtomicBool = AtomicBool::new(false);
 static TASKBAR_CREATED: AtomicU32 = AtomicU32::new(0);
 
 const WALL_CLASS: PCWSTR = w!("CustomWinWallpaper");
 const RETRY_TIMER: usize = 1;
+const UNLOAD_TIMER: usize = 2;
+/// How long every wallpaper must stay paused before its decoder is released.
+const UNLOAD_AFTER_MS: u32 = 60_000;
 
 struct Placed {
     surface: Surface,
@@ -146,6 +151,9 @@ pub fn run(windowed: bool) -> windows_core::Result<()> {
             }
             if watch::CHANGED.swap(false, Ordering::Relaxed) {
                 app.update_pauses();
+            }
+            if UNLOAD.swap(false, Ordering::Relaxed) {
+                app.unload_paused();
             }
             if app.placed.iter().any(|p| p.active) {
                 app.gpu.wait_vblank();
@@ -350,7 +358,31 @@ impl App {
                 wallpaper::should_play(&p.devices, &fg, self.config.pause_when_maximized, global);
         }
         for (path, video) in &mut self.videos {
-            video.set_playing(self.placed.iter().any(|p| p.active && p.video == *path));
+            let play = self.placed.iter().any(|p| p.active && p.video == *path);
+            video.set_playing(&self.gpu, play);
+        }
+        // Any change restarts the countdown; it only runs out after a quiet minute of pause.
+        unsafe {
+            if self.videos.values().any(|v| !v.playing()) {
+                SetTimer(Some(self.control), UNLOAD_TIMER, UNLOAD_AFTER_MS, None);
+            } else {
+                let _ = KillTimer(Some(self.control), UNLOAD_TIMER);
+            }
+        }
+    }
+
+    /// Frees the decoders of videos that have been paused for a while (game, lock screen…)
+    /// and hands the memory back to Windows. The windows keep their last image.
+    fn unload_paused(&mut self) {
+        unsafe {
+            let _ = KillTimer(Some(self.control), UNLOAD_TIMER);
+        }
+        let freed = self.videos.values_mut().fold(false, |f, v| v.unload() | f);
+        if freed {
+            log::write("paused for a while: decoder released");
+            unsafe {
+                let _ = K32EmptyWorkingSet(GetCurrentProcess());
+            }
         }
     }
 
@@ -387,6 +419,7 @@ unsafe extern "system" fn control_proc(
     lparam: LPARAM,
 ) -> LRESULT {
     match msg {
+        WM_TIMER if wparam.0 == UNLOAD_TIMER => UNLOAD.store(true, Ordering::Relaxed),
         wallpaper::MSG_RELOAD | WM_DISPLAYCHANGE | WM_TIMER => {
             RELOAD.store(true, Ordering::Relaxed)
         }

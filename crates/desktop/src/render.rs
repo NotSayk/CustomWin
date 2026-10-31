@@ -145,12 +145,22 @@ impl IMFMediaEngineNotify_Impl for Notify_Impl {
 
 pub struct Video {
     pub path: PathBuf,
-    engine: IMFMediaEngine,
+    /// `None` once unloaded after a long pause: the decoder and its surfaces are the bulk
+    /// of the process's memory, and are rebuilt when playback resumes.
+    engine: Option<IMFMediaEngine>,
     playing: bool,
 }
 
 impl Video {
     pub fn open(gpu: &Gpu, path: &Path) -> Result<Self> {
+        Ok(Video {
+            path: path.to_path_buf(),
+            engine: Some(Self::create_engine(gpu, path)?),
+            playing: false,
+        })
+    }
+
+    fn create_engine(gpu: &Gpu, path: &Path) -> Result<IMFMediaEngine> {
         unsafe {
             let notify: IMFMediaEngineNotify = Notify {
                 path: path.display().to_string(),
@@ -173,21 +183,29 @@ impl Video {
             engine.SetLoop(true)?;
             engine.SetAutoPlay(false)?;
             engine.SetSource(&BSTR::from(path.to_string_lossy().as_ref()))?;
-            Ok(Video {
-                path: path.to_path_buf(),
-                engine,
-                playing: false,
-            })
+            Ok(engine)
         }
     }
 
-    pub fn set_playing(&mut self, play: bool) {
+    pub fn set_playing(&mut self, gpu: &Gpu, play: bool) {
+        if play && self.engine.is_none() {
+            match Self::create_engine(gpu, &self.path) {
+                Ok(e) => self.engine = Some(e),
+                Err(e) => {
+                    log::write(&format!("reload {}: {e}", self.path.display()));
+                    return;
+                }
+            }
+        }
+        let Some(engine) = &self.engine else {
+            return;
+        };
         if play != self.playing {
             let r = unsafe {
                 if play {
-                    self.engine.Play()
+                    engine.Play()
                 } else {
-                    self.engine.Pause()
+                    engine.Pause()
                 }
             };
             match r {
@@ -201,29 +219,47 @@ impl Video {
         self.playing
     }
 
+    /// Releases the decoder of a paused video. Returns whether anything was freed.
+    pub fn unload(&mut self) -> bool {
+        if self.playing {
+            return false;
+        }
+        match self.engine.take() {
+            Some(engine) => {
+                let _ = unsafe { engine.Shutdown() };
+                true
+            }
+            None => false,
+        }
+    }
+
     /// Whether a new frame is ready. `OnVideoStreamTick` returns S_FALSE when there is
     /// none, which the high-level wrapper would report as success: call the vtable.
     pub fn new_frame(&self) -> bool {
+        let Some(engine) = &self.engine else {
+            return false;
+        };
         let mut pts = 0i64;
         let hr = unsafe {
-            (Interface::vtable(&self.engine).OnVideoStreamTick)(
-                Interface::as_raw(&self.engine),
-                &mut pts,
-            )
+            (Interface::vtable(engine).OnVideoStreamTick)(Interface::as_raw(engine), &mut pts)
         };
         hr == S_OK
     }
 
     fn size(&self) -> (u32, u32) {
         let (mut w, mut h) = (0u32, 0u32);
-        let _ = unsafe { self.engine.GetNativeVideoSize(Some(&mut w), Some(&mut h)) };
+        if let Some(engine) = &self.engine {
+            let _ = unsafe { engine.GetNativeVideoSize(Some(&mut w), Some(&mut h)) };
+        }
         (w, h)
     }
 }
 
 impl Drop for Video {
     fn drop(&mut self) {
-        let _ = unsafe { self.engine.Shutdown() };
+        if let Some(engine) = &self.engine {
+            let _ = unsafe { engine.Shutdown() };
+        }
     }
 }
 
@@ -291,6 +327,9 @@ impl Surface {
     /// Copies the video's current frame into the window and presents it. Returns false
     /// while the video size is not known yet (nothing is drawn).
     pub fn draw(&self, gpu: &Gpu, video: &Video, fit: Fit) -> Result<bool> {
+        let Some(engine) = &video.engine else {
+            return Ok(false);
+        };
         let (vw, vh) = video.size();
         let Some((src, dst)) = frame(fit, vw, vh, self.width, self.height) else {
             return Ok(false);
@@ -325,9 +364,7 @@ impl Surface {
                 rgbRed: 0,
                 rgbAlpha: 255,
             };
-            video
-                .engine
-                .TransferVideoFrame(&back, Some(&src), &dst, Some(&black))?;
+            engine.TransferVideoFrame(&back, Some(&src), &dst, Some(&black))?;
             self.swap.Present(0, DXGI_PRESENT(0)).ok()?;
         }
         Ok(true)
