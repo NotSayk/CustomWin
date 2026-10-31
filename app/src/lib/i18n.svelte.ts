@@ -3,7 +3,6 @@ import type { Lang, Localized } from "./types";
 const fr = {
   "nav.analysis": "Analyse",
   "nav.tweaks": "Tweaks",
-  "nav.contexts": "Profils de contexte",
   "nav.themes": "Thèmes",
   "nav.widgets": "Widgets",
   "nav.soon": "bientôt",
@@ -99,8 +98,6 @@ const fr = {
   "toast.sign_out": "Déconnecte-toi puis reconnecte-toi pour terminer.",
   "error.generic": "Erreur :",
 
-  "soon.contexts":
-    "Un clic ou un déclencheur automatique (heure, lancement d'un jeu, batterie) pour passer en mode Focus ou Gaming : notifications coupées, applis fermées, plan d'alimentation changé.",
   "soon.themes":
     "Fond d'écran, couleur d'accent, curseurs, icônes, mode sombre selon l'heure, et fonds d'écran vidéo animés qui se mettent en pause pendant les jeux.",
   "soon.widgets":
@@ -113,7 +110,6 @@ export type Key = keyof typeof fr;
 const en: Record<Key, string> = {
   "nav.analysis": "Analysis",
   "nav.tweaks": "Tweaks",
-  "nav.contexts": "Context profiles",
   "nav.themes": "Themes",
   "nav.widgets": "Widgets",
   "nav.soon": "soon",
@@ -209,8 +205,6 @@ const en: Record<Key, string> = {
   "toast.sign_out": "Sign out and back in to finish.",
   "error.generic": "Error:",
 
-  "soon.contexts":
-    "One click or an automatic trigger (time, game launch, battery) to switch to Focus or Gaming: notifications muted, apps closed, power plan changed.",
   "soon.themes":
     "Wallpaper, accent colour, cursors, icons, dark mode by time of day, and animated video wallpapers that pause during games.",
   "soon.widgets":

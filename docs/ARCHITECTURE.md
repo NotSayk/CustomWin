@@ -1,6 +1,6 @@
 # Architecture
 
-Principe directeur : **ce qui tourne en permanence ne doit presque rien coûter**. L'interface n'est ouverte que quand on s'en sert ; les futurs composants résidents (agent, fonds animés, widgets) sont en Rust natif, sans WebView.
+Principe directeur : **ce qui tourne en permanence ne doit presque rien coûter**. L'interface n'est ouverte que quand on s'en sert ; les futurs composants résidents (fonds animés, widgets) sont en Rust natif, sans WebView.
 
 ```
 ┌──────────────────────────┐    UAC, une fois par opération    ┌───────────────────────────┐
@@ -15,7 +15,7 @@ Principe directeur : **ce qui tourne en permanence ne doit presque rien coûter*
        catalogue · moteur · journal · analyse · backend Windows
 ```
 
-Prévu (phases 2 et 3) : `customwin-agent.exe` (déclencheurs de profils, ~3-5 Mo de RAM) et `customwin-desktop.exe` (fonds vidéo + widgets dessinés en Direct3D/Direct2D).
+Prévu (phase 2) : `customwin-desktop.exe` (fonds vidéo, widgets et mode sombre selon l'heure, dessinés en Direct3D/Direct2D).
 
 ## customwin-core
 

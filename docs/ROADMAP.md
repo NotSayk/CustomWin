@@ -1,6 +1,6 @@
 # Feuille de route
 
-Décisions prises : Windows 11 23H2 et plus récent · Rust + Tauri 2 + Svelte 5 · open source (MIT) · NVIDIA d'abord, AMD et Intel ensuite · tweaks risqués en mode expert uniquement · internet optionnel · interface FR + EN.
+Décisions prises : usage perso (pas de signature du code) · pas de profils de contexte · Windows 11 23H2 et plus récent · Rust + Tauri 2 + Svelte 5 · open source (MIT) · NVIDIA d'abord, AMD et Intel ensuite · tweaks risqués en mode expert uniquement · internet optionnel · interface FR + EN.
 
 ## Phase 1 — Tweaks et analyse ✅
 
@@ -16,16 +16,8 @@ Décisions prises : Windows 11 23H2 et plus récent · Rust + Tauri 2 + Svelte 5
 - [x] NVIDIA via NVAPI (SDK MIT) : mode faible latence, performances maximales ; retour à la valeur d'origine ou au réglage par défaut du pilote
 - [x] Cartes réseau physiques : Energy-Efficient Ethernet, Green Ethernet (Realtek), mise hors tension par Windows
 - [x] Vérification en ligne, sur demande, de la dernière version du pilote NVIDIA (WinHTTP, aucune dépendance ajoutée)
-- [ ] Signature du code : la procédure est prête (voir `docs/SIGNING.md`), elle demande un compte Azure du propriétaire du projet
 
-## Phase 2 — Profils de contexte
-
-- `customwin-agent.exe` : Rust pur, icône dans la barre des tâches, ~3-5 Mo de RAM
-- Déclencheurs : heure, lancement d'un processus (jeu), secteur ou batterie, raccourci clavier
-- Actions : plan d'alimentation, fermeture d'applis, arrêt de services, notifications coupées, restauration à la sortie du profil
-- Point à surveiller : Windows 11 n'a pas d'API publique pour « Ne pas déranger ». Il faudra une méthode non documentée, isolée et désactivable
-
-## Phase 3 — Thèmes, fonds animés et widgets
+## Phase 2 — Thèmes, fonds animés et widgets
 
 Un seul processus natif, `customwin-desktop.exe`, partage le rendu Direct3D 11 / Direct2D :
 

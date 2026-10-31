@@ -8,7 +8,7 @@ Optimise et personnalise Windows 11 **en un clic, et de façon réversible**.
 - **Pilote NVIDIA à jour ?** Vérification en ligne sur demande, auprès de NVIDIA uniquement.
 - Chaque tweak indique son **niveau de risque** et ce qu'on sait réellement de son effet (« gain mesuré », « gain variable » ou simplement fonctionnel). Les « optimisations » placebo qui circulent sur internet sont volontairement absentes.
 
-Prévu ensuite : profils de contexte (Focus, Gaming), thèmes et fonds d'écran vidéo animés, widgets de bureau ultra-légers. Voir [la feuille de route](docs/ROADMAP.md).
+Prévu ensuite : thèmes et fonds d'écran vidéo animés, widgets de bureau ultra-légers. Voir [la feuille de route](docs/ROADMAP.md).
 
 > État : **phase 1 terminée** (moteur de tweaks, analyse, interface). Pas encore de version publiée.
 
@@ -20,6 +20,10 @@ Prévu ensuite : profils de contexte (Focus, Gaming), thèmes et fonds d'écran 
 4. Pour les réglages système, un point de restauration Windows est créé avant d'appliquer.
 5. Les seuls tweaks qui ne s'annulent pas entièrement sur place (suppression d'applis : l'annulation les réinstalle depuis le Store) sont signalés « partiellement réversible » et jamais inclus dans un profil.
 6. L'interface ne tourne jamais en administrateur. Seul `customwin-helper.exe` est élevé (une invite UAC par opération), et il n'exécute que des tweaks du catalogue, jamais de commande arbitraire.
+
+## Installer l'app
+
+L'installeur n'est pas signé (inutile pour un usage perso). Au premier lancement, Windows affiche « Windows a protégé votre ordinateur » : clique sur **Informations complémentaires**, puis **Exécuter quand même**. Certains antivirus peuvent aussi se méfier d'un outil non signé qui modifie le registre.
 
 ## Structure
 
