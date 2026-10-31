@@ -32,3 +32,8 @@ Un seul processus natif, `customwin-desktop.exe`, partage le rendu Direct3D 11 /
 - **Widgets** : horloge, météo (Open-Meteo, sans clé API), CPU/RAM, musique en cours (SMTC) avec contrôles, raccourcis ; posés sur le bureau ou dans une barre fine (AppBar)
 - **Format de skin ouvert** en TOML pour créer et partager des widgets
 - **Plein écran** : tout se masque et se met en pause (0 % CPU) dès qu'un jeu ou une appli passe en plein écran, ainsi que sur batterie si l'utilisateur le souhaite
+
+## À corriger au prochain patch
+
+- [x] **Fond animé : impossible de retirer ou changer une vidéo supprimée.** `set_wallpaper` (`app/src-tauri/src/main.rs`) vérifie `is_file()` sur *toutes* les vidéos de la config à chaque enregistrement. Si le fichier d'origine a été supprimé et référencé par plusieurs emplacements (un par écran + « tous les écrans »), retirer ou changer un seul emplacement échoue encore (« not a readable video »), à cause des autres. Correctif : ne valider que les chemins nouveaux ou modifiés par rapport à la config enregistrée, et laisser passer un emplacement qui passe à `null`. Idéalement, `get_wallpaper` signale aussi les vidéos introuvables pour que l'interface les affiche comme manquantes.
+- [x] **`wallpaper.json` écrit avec un BOM UTF-8** (cas rencontré en l'éditant depuis PowerShell 5.1) : `WallpaperConfig::load` échoue avec « expected value at line 1 column 1 ». Correctif : ignorer un éventuel BOM à la lecture.

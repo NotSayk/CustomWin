@@ -87,7 +87,8 @@ impl WallpaperConfig {
     /// Missing file → defaults. A corrupt file is an error rather than silently reset.
     pub fn load(path: &Path) -> Result<Self, Error> {
         match std::fs::read(path) {
-            Ok(b) => serde_json::from_slice(&b)
+            // Editors on Windows (and PowerShell 5.1) like to prepend a UTF-8 BOM.
+            Ok(b) => serde_json::from_slice(b.strip_prefix(b"\xEF\xBB\xBF").unwrap_or(&b))
                 .map_err(|e| Error::Invalid(format!("{}: {e}", path.display()))),
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(Self::default()),
             Err(e) => Err(Error::System(format!("{}: {e}", path.display()))),
@@ -106,6 +107,22 @@ impl WallpaperConfig {
         )
         .map_err(io)?;
         std::fs::rename(&tmp, path).map_err(io)
+    }
+
+    /// Every video path in the configuration, whatever the layout.
+    pub fn videos(&self) -> impl Iterator<Item = &PathBuf> {
+        self.screens
+            .iter()
+            .filter_map(|s| s.video.as_ref())
+            .chain(self.span_video.as_ref())
+    }
+
+    /// Videos that `self` references and `previous` did not: the only ones worth checking
+    /// on save. A path that was already configured may since have been deleted, and that
+    /// must not stop the user from removing or replacing it.
+    pub fn added_videos<'a>(&'a self, previous: &'a Self) -> impl Iterator<Item = &'a PathBuf> {
+        self.videos()
+            .filter(move |v| !previous.videos().any(|p| p == *v))
     }
 
     /// Whether there is anything to play.
@@ -277,6 +294,40 @@ pub fn should_play(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn screen(device: &str, video: Option<&str>) -> ScreenConfig {
+        ScreenConfig {
+            device: device.into(),
+            video: video.map(PathBuf::from),
+            fit: Fit::Cover,
+        }
+    }
+
+    #[test]
+    fn only_newly_added_videos_are_checked() {
+        let previous = WallpaperConfig {
+            screens: vec![screen("A", Some("gone.mp4")), screen("B", Some("gone.mp4"))],
+            span_video: Some("gone.mp4".into()),
+            ..Default::default()
+        };
+        // Removing one slot keeps the others, which are unchanged and so not re-checked.
+        let mut next = previous.clone();
+        next.screens[0].video = None;
+        assert_eq!(next.added_videos(&previous).count(), 0);
+        // Picking a new file is checked.
+        next.screens[0].video = Some("new.mp4".into());
+        let added: Vec<_> = next.added_videos(&previous).collect();
+        assert_eq!(added, [&PathBuf::from("new.mp4")]);
+    }
+
+    #[test]
+    fn load_accepts_a_utf8_bom() {
+        let path = std::env::temp_dir().join(format!("customwin-bom-{}.json", std::process::id()));
+        std::fs::write(&path, b"\xEF\xBB\xBF{\"enabled\": true}").unwrap();
+        let loaded = WallpaperConfig::load(&path);
+        std::fs::remove_file(&path).ok();
+        assert!(loaded.unwrap().enabled);
+    }
 
     #[test]
     fn cover_crops_the_overflowing_axis() {

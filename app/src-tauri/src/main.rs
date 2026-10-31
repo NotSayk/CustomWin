@@ -247,12 +247,10 @@ async fn get_wallpaper() -> CmdResult<WallpaperView> {
 #[tauri::command]
 async fn set_wallpaper(config: WallpaperConfig) -> CmdResult<WallpaperView> {
     blocking(move || {
-        let videos = config
-            .screens
-            .iter()
-            .filter_map(|s| s.video.as_ref())
-            .chain(config.span_video.as_ref());
-        for v in videos {
+        // Only check what the user just picked: a video that was already configured may have
+        // been deleted since, and must still be removable or replaceable.
+        let previous = WallpaperConfig::load(&win::wallpaper_config_path()).unwrap_or_default();
+        for v in config.added_videos(&previous) {
             if !wallpaper::is_video(v) || !v.is_file() {
                 return Err(format!("not a readable video: {}", v.display()));
             }
