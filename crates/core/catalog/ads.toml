@@ -1,0 +1,154 @@
+# Publicités et suggestions intégrées à Windows 11.
+# Les valeurs ContentDeliveryManager sont par utilisateur et s'appliquent sans redémarrage.
+
+[[tweak]]
+id = "ads.start_recommendations"
+category = "ads"
+risk = "safe"
+evidence = "functional"
+tags = ["clean", "minimal"]
+name = { fr = "Pas de pubs dans le menu Démarrer", en = "No ads in the Start menu" }
+description = { fr = "Retire les applis et conseils « recommandés » par Microsoft dans le menu Démarrer.", en = "Removes the apps and tips Microsoft \"recommends\" in the Start menu." }
+
+[[tweak.action]]
+kind = "registry"
+hive = "HKCU"
+path = 'Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
+name = "Start_IrisRecommendations"
+dword = 0
+
+[[tweak.action]]
+kind = "registry"
+hive = "HKCU"
+path = 'Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'
+name = "SubscribedContent-338388Enabled"
+dword = 0
+
+[[tweak.action]]
+kind = "registry"
+hive = "HKCU"
+path = 'Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'
+name = "SystemPaneSuggestionsEnabled"
+dword = 0
+
+[[tweak]]
+id = "ads.lock_screen"
+category = "ads"
+risk = "safe"
+evidence = "functional"
+tags = ["clean", "minimal"]
+name = { fr = "Pas de pubs sur l'écran de verrouillage", en = "No ads on the lock screen" }
+description = { fr = "Retire les « anecdotes, conseils et astuces » affichés sur l'écran de verrouillage.", en = "Removes the \"fun facts, tips and tricks\" shown on the lock screen." }
+
+[[tweak.action]]
+kind = "registry"
+hive = "HKCU"
+path = 'Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'
+name = "RotatingLockScreenOverlayEnabled"
+dword = 0
+
+[[tweak.action]]
+kind = "registry"
+hive = "HKCU"
+path = 'Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'
+name = "SubscribedContent-338387Enabled"
+dword = 0
+
+[[tweak]]
+id = "ads.settings_suggestions"
+category = "ads"
+risk = "safe"
+evidence = "functional"
+tags = ["clean", "minimal"]
+name = { fr = "Pas de suggestions dans Paramètres", en = "No suggestions in Settings" }
+description = { fr = "Retire le contenu suggéré par Microsoft dans l'application Paramètres.", en = "Removes Microsoft's suggested content in the Settings app." }
+
+[[tweak.action]]
+kind = "registry"
+hive = "HKCU"
+path = 'Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'
+name = "SubscribedContent-338393Enabled"
+dword = 0
+
+[[tweak.action]]
+kind = "registry"
+hive = "HKCU"
+path = 'Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'
+name = "SubscribedContent-353694Enabled"
+dword = 0
+
+[[tweak.action]]
+kind = "registry"
+hive = "HKCU"
+path = 'Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'
+name = "SubscribedContent-353696Enabled"
+dword = 0
+
+[[tweak]]
+id = "ads.tips_notifications"
+category = "ads"
+risk = "safe"
+evidence = "functional"
+tags = ["clean", "minimal"]
+name = { fr = "Pas de notifications « conseils »", en = "No \"tips\" notifications" }
+description = { fr = "Coupe les conseils et suggestions que Windows envoie en notification.", en = "Turns off the tips and suggestions Windows sends as notifications." }
+
+[[tweak.action]]
+kind = "registry"
+hive = "HKCU"
+path = 'Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'
+name = "SubscribedContent-338389Enabled"
+dword = 0
+
+[[tweak.action]]
+kind = "registry"
+hive = "HKCU"
+path = 'Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'
+name = "SoftLandingEnabled"
+dword = 0
+
+[[tweak]]
+id = "ads.silent_app_installs"
+category = "ads"
+risk = "safe"
+evidence = "functional"
+tags = ["clean", "minimal"]
+name = { fr = "Bloquer l'installation silencieuse d'applis", en = "Block silent app installs" }
+description = { fr = "Empêche Windows d'installer automatiquement des applis et jeux sponsorisés.", en = "Stops Windows from automatically installing sponsored apps and games." }
+
+[[tweak.action]]
+kind = "registry"
+hive = "HKCU"
+path = 'Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'
+name = "SilentInstalledAppsEnabled"
+dword = 0
+
+[[tweak.action]]
+kind = "registry"
+hive = "HKCU"
+path = 'Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'
+name = "OemPreInstalledAppsEnabled"
+dword = 0
+
+[[tweak.action]]
+kind = "registry"
+hive = "HKCU"
+path = 'Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'
+name = "PreInstalledAppsEnabled"
+dword = 0
+
+[[tweak]]
+id = "ads.explorer_sync_provider"
+category = "ads"
+risk = "safe"
+evidence = "functional"
+tags = ["clean", "minimal"]
+name = { fr = "Pas de pubs dans l'Explorateur", en = "No ads in File Explorer" }
+description = { fr = "Retire les bannières (OneDrive, Microsoft 365) affichées dans l'Explorateur de fichiers.", en = "Removes the banners (OneDrive, Microsoft 365) shown in File Explorer." }
+
+[[tweak.action]]
+kind = "registry"
+hive = "HKCU"
+path = 'Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
+name = "ShowSyncProviderNotifications"
+dword = 0

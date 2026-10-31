@@ -1,0 +1,27 @@
+# Mode expert : gains réels possibles, mais au prix de la sécurité ou de la stabilité.
+# Masqués par défaut dans l'interface, jamais inclus dans un profil un clic.
+
+[[tweak]]
+id = "expert.vbs_off"
+category = "expert"
+risk = "expert"
+evidence = "situational"
+restart = "reboot"
+tags = ["gaming", "performance"]
+name = { fr = "Désactiver la sécurité basée sur la virtualisation", en = "Disable virtualization-based security" }
+description = { fr = "Désactive VBS et l'intégrité de la mémoire (HVCI). Peut rendre quelques pourcents de performance dans certains jeux.", en = "Turns off VBS and memory integrity (HVCI). Can recover a few percent of performance in some games." }
+note = { fr = "Réduit fortement la protection contre les malwares du noyau. Sans effet si VBS est verrouillé dans l'UEFI. Certains anti-cheats ou logiciels d'entreprise peuvent l'exiger.", en = "Greatly reduces protection against kernel malware. No effect if VBS is locked in UEFI. Some anti-cheats or corporate software may require it." }
+
+[[tweak.action]]
+kind = "registry"
+hive = "HKLM"
+path = 'SYSTEM\CurrentControlSet\Control\DeviceGuard'
+name = "EnableVirtualizationBasedSecurity"
+dword = 0
+
+[[tweak.action]]
+kind = "registry"
+hive = "HKLM"
+path = 'SYSTEM\CurrentControlSet\Control\DeviceGuard\Scenarios\HypervisorEnforcedCodeIntegrity'
+name = "Enabled"
+dword = 0

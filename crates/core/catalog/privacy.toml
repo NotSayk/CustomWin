@@ -1,0 +1,116 @@
+# Confidentialité et télémétrie — Windows 11 23H2+
+# Chaque action indique l'état cible ; l'état d'origine est enregistré dans le journal avant
+# toute modification, ce qui rend le tweak réversible.
+
+[[tweak]]
+id = "privacy.telemetry_minimum"
+category = "privacy"
+risk = "low"
+evidence = "functional"
+tags = ["privacy", "minimal"]
+name = { fr = "Télémétrie au minimum", en = "Minimum telemetry" }
+description = { fr = "Règle la stratégie de collecte de données de diagnostic au niveau le plus bas autorisé par ton édition de Windows.", en = "Sets the diagnostic data policy to the lowest level your Windows edition allows." }
+note = { fr = "Sur Famille et Pro, Windows applique au mieux le niveau « obligatoire » : la valeur 0 n'est respectée que sur Entreprise et Éducation.", en = "On Home and Pro, Windows enforces at best the \"required\" level: value 0 is only honoured on Enterprise and Education." }
+
+[[tweak.action]]
+kind = "registry"
+hive = "HKLM"
+path = 'SOFTWARE\Policies\Microsoft\Windows\DataCollection'
+name = "AllowTelemetry"
+dword = 0
+
+[[tweak]]
+id = "privacy.diagtrack_service"
+category = "privacy"
+risk = "low"
+evidence = "functional"
+tags = ["privacy", "minimal"]
+name = { fr = "Désactiver le service de télémétrie", en = "Disable the telemetry service" }
+description = { fr = "Arrête et désactive « Expériences des utilisateurs connectés et télémétrie » (DiagTrack), qui envoie les données de diagnostic.", en = "Stops and disables \"Connected User Experiences and Telemetry\" (DiagTrack), which uploads diagnostic data." }
+
+[[tweak.action]]
+kind = "service"
+name = "DiagTrack"
+startup = "disabled"
+stop = true
+
+[[tweak]]
+id = "privacy.advertising_id"
+category = "privacy"
+risk = "safe"
+evidence = "functional"
+tags = ["privacy", "minimal"]
+name = { fr = "Désactiver l'identifiant publicitaire", en = "Disable the advertising ID" }
+description = { fr = "Empêche les applications d'utiliser ton identifiant publicitaire pour des pubs ciblées.", en = "Stops apps from using your advertising ID for targeted ads." }
+
+[[tweak.action]]
+kind = "registry"
+hive = "HKCU"
+path = 'Software\Microsoft\Windows\CurrentVersion\AdvertisingInfo'
+name = "Enabled"
+dword = 0
+
+[[tweak]]
+id = "privacy.tailored_experiences"
+category = "privacy"
+risk = "safe"
+evidence = "functional"
+tags = ["privacy", "minimal"]
+name = { fr = "Pas d'expériences personnalisées", en = "No tailored experiences" }
+description = { fr = "Microsoft n'utilise plus tes données de diagnostic pour te proposer des conseils et des pubs personnalisés.", en = "Microsoft stops using your diagnostic data for personalised tips and ads." }
+
+[[tweak.action]]
+kind = "registry"
+hive = "HKCU"
+path = 'Software\Microsoft\Windows\CurrentVersion\Privacy'
+name = "TailoredExperiencesWithDiagnosticDataEnabled"
+dword = 0
+
+[[tweak]]
+id = "privacy.activity_history"
+category = "privacy"
+risk = "safe"
+evidence = "functional"
+tags = ["privacy", "minimal"]
+name = { fr = "Désactiver l'historique des activités", en = "Disable activity history" }
+description = { fr = "Windows n'enregistre plus les applis, fichiers et sites que tu ouvres.", en = "Windows stops recording the apps, files and sites you open." }
+
+[[tweak.action]]
+kind = "registry"
+hive = "HKLM"
+path = 'SOFTWARE\Policies\Microsoft\Windows\System'
+name = "PublishUserActivities"
+dword = 0
+
+[[tweak]]
+id = "privacy.web_search_start"
+category = "privacy"
+risk = "safe"
+evidence = "functional"
+restart = "explorer"
+tags = ["privacy", "clean", "minimal"]
+name = { fr = "Pas de recherche Bing dans Démarrer", en = "No Bing search in Start" }
+description = { fr = "La recherche du menu Démarrer ne cherche plus sur le web : résultats locaux uniquement, plus rapides.", en = "Start menu search stops querying the web: local results only, and faster." }
+
+[[tweak.action]]
+kind = "registry"
+hive = "HKCU"
+path = 'Software\Policies\Microsoft\Windows\Explorer'
+name = "DisableSearchBoxSuggestions"
+dword = 1
+
+[[tweak]]
+id = "privacy.recall"
+category = "privacy"
+risk = "safe"
+evidence = "functional"
+tags = ["privacy", "minimal"]
+name = { fr = "Désactiver Recall (captures IA)", en = "Disable Recall (AI snapshots)" }
+description = { fr = "Empêche Windows d'enregistrer des captures d'écran de ton activité pour Recall (PC Copilot+).", en = "Stops Windows from saving screenshots of your activity for Recall (Copilot+ PCs)." }
+
+[[tweak.action]]
+kind = "registry"
+hive = "HKCU"
+path = 'Software\Policies\Microsoft\Windows\WindowsAI'
+name = "DisableAIDataAnalysis"
+dword = 1

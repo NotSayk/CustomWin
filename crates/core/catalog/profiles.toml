@@ -1,0 +1,58 @@
+# Profils un clic. Un profil n'est qu'une liste de tweaks : il s'annule tweak par tweak.
+# Règle vérifiée par les tests : aucun tweak « expert » dans un profil.
+
+[[profile]]
+id = "minimal"
+name = { fr = "Minimal", en = "Minimal" }
+description = { fr = "Windows épuré : sans pubs, sans télémétrie superflue, sans Widgets ni animations.", en = "A clean Windows: no ads, no unnecessary telemetry, no Widgets or animations." }
+tweaks = [
+    "privacy.telemetry_minimum",
+    "privacy.diagtrack_service",
+    "privacy.advertising_id",
+    "privacy.tailored_experiences",
+    "privacy.activity_history",
+    "privacy.web_search_start",
+    "privacy.recall",
+    "ads.start_recommendations",
+    "ads.lock_screen",
+    "ads.settings_suggestions",
+    "ads.tips_notifications",
+    "ads.silent_app_installs",
+    "ads.explorer_sync_provider",
+    "interface.widgets",
+    "interface.search_icon_only",
+    "interface.hide_task_view",
+    "interface.reduce_animations",
+]
+
+[[profile]]
+id = "gaming"
+name = { fr = "Gaming", en = "Gaming" }
+description = { fr = "Moins de tâches de fond, pas de capture permanente, souris sans accélération, pas de redémarrage surprise.", en = "Fewer background tasks, no always-on capture, raw mouse input, no surprise restarts." }
+tweaks = [
+    "gaming.game_mode",
+    "gaming.game_dvr_off",
+    "gaming.hags",
+    "gaming.mouse_acceleration_off",
+    "interface.widgets",
+    "interface.reduce_animations",
+    "interface.end_task",
+    "ads.tips_notifications",
+    "updates.no_auto_reboot",
+]
+
+[[profile]]
+id = "privacy"
+name = { fr = "Confidentialité", en = "Privacy" }
+description = { fr = "Le moins de données possible envoyées à Microsoft et aux annonceurs.", en = "As little data as possible sent to Microsoft and advertisers." }
+tweaks = [
+    "privacy.telemetry_minimum",
+    "privacy.diagtrack_service",
+    "privacy.advertising_id",
+    "privacy.tailored_experiences",
+    "privacy.activity_history",
+    "privacy.web_search_start",
+    "privacy.recall",
+    "ads.silent_app_installs",
+    "updates.no_p2p_delivery",
+]

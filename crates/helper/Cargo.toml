@@ -1,0 +1,12 @@
+[package]
+name = "customwin-helper"
+description = "Elevated helper of CustomWin: applies tweaks that need administrator rights"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+customwin-core.workspace = true
+serde_json.workspace = true

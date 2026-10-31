@@ -1,0 +1,144 @@
+# Jeu, alimentation et Windows Update.
+# Seuls les réglages dont l'effet est connu sont ici. Les « tweaks gaming » placebo ou risqués
+# qui circulent (HPET, Nagle, NetworkThrottlingIndex…) sont volontairement absents.
+
+[[tweak]]
+id = "gaming.game_mode"
+category = "gaming"
+risk = "safe"
+evidence = "situational"
+tags = ["gaming"]
+name = { fr = "Activer le Mode Jeu", en = "Enable Game Mode" }
+description = { fr = "Windows donne la priorité au jeu au premier plan et repousse les installations de mises à jour pendant que tu joues.", en = "Windows prioritises the foreground game and holds back update installs while you play." }
+
+[[tweak.action]]
+kind = "registry"
+hive = "HKCU"
+path = 'Software\Microsoft\GameBar'
+name = "AutoGameModeEnabled"
+dword = 1
+
+[[tweak]]
+id = "gaming.game_dvr_off"
+category = "gaming"
+risk = "safe"
+evidence = "measured"
+tags = ["gaming", "performance"]
+name = { fr = "Désactiver l'enregistrement en arrière-plan", en = "Disable background recording" }
+description = { fr = "Coupe la capture permanente de la Xbox Game Bar (« Enregistrer ce qui vient de se passer »), qui occupe l'encodeur vidéo et un peu de GPU.", en = "Turns off the Xbox Game Bar's always-on capture (\"Record what happened\"), which keeps the video encoder and some GPU busy." }
+
+[[tweak.action]]
+kind = "registry"
+hive = "HKCU"
+path = 'System\GameConfigStore'
+name = "GameDVR_Enabled"
+dword = 0
+
+[[tweak.action]]
+kind = "registry"
+hive = "HKCU"
+path = 'Software\Microsoft\Windows\CurrentVersion\GameDVR'
+name = "AppCaptureEnabled"
+dword = 0
+
+[[tweak.action]]
+kind = "registry"
+hive = "HKCU"
+path = 'Software\Microsoft\Windows\CurrentVersion\GameDVR'
+name = "HistoricalCaptureEnabled"
+dword = 0
+
+[[tweak]]
+id = "gaming.hags"
+category = "gaming"
+risk = "low"
+evidence = "situational"
+restart = "reboot"
+tags = ["gaming"]
+name = { fr = "Planification GPU accélérée par le matériel", en = "Hardware-accelerated GPU scheduling" }
+description = { fr = "Le GPU gère lui-même sa file de travail. Nécessaire pour la génération d'images DLSS 3 sur les RTX 40 et plus récentes.", en = "The GPU manages its own work queue. Required for DLSS 3 frame generation on RTX 40 series and newer." }
+note = { fr = "Effet variable selon le GPU et le jeu. Nécessite un GPU et un pilote compatibles (NVIDIA GTX 10 et plus récents).", en = "Effect varies with GPU and game. Needs a compatible GPU and driver (NVIDIA GTX 10 series and newer)." }
+
+[[tweak.action]]
+kind = "registry"
+hive = "HKLM"
+path = 'SYSTEM\CurrentControlSet\Control\GraphicsDrivers'
+name = "HwSchMode"
+dword = 2
+
+[[tweak]]
+id = "gaming.mouse_acceleration_off"
+category = "gaming"
+risk = "safe"
+evidence = "functional"
+tags = ["gaming"]
+name = { fr = "Désactiver l'accélération de la souris", en = "Disable mouse acceleration" }
+description = { fr = "Décoche « Améliorer la précision du pointeur » : le curseur bouge toujours de la même distance pour le même geste.", en = "Unchecks \"Enhance pointer precision\": the cursor always moves the same distance for the same motion." }
+
+[[tweak.action]]
+kind = "system_parameter"
+param = "mouse_acceleration"
+value = false
+
+[[tweak]]
+id = "power.high_performance"
+category = "power"
+risk = "low"
+evidence = "situational"
+tags = ["performance", "gaming", "desktop-only"]
+name = { fr = "Plan d'alimentation Performances élevées", en = "High performance power plan" }
+description = { fr = "Le processeur reste à haute fréquence au lieu de se mettre en veille entre deux tâches.", en = "The CPU stays at high clock speeds instead of idling down between tasks." }
+note = { fr = "Augmente la consommation. Ce plan n'existe pas sur beaucoup de PC portables récents (veille moderne).", en = "Increases power draw. This plan does not exist on many recent laptops (Modern Standby)." }
+
+[[tweak.action]]
+kind = "power_plan"
+scheme = "8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c"
+
+[[tweak]]
+id = "updates.no_auto_reboot"
+category = "updates"
+risk = "low"
+evidence = "functional"
+tags = ["gaming"]
+name = { fr = "Pas de redémarrage auto si tu es connecté", en = "No auto-restart while signed in" }
+description = { fr = "Windows Update ne redémarre plus le PC tout seul pendant que ta session est ouverte.", en = "Windows Update no longer restarts the PC by itself while you are signed in." }
+
+[[tweak.action]]
+kind = "registry"
+hive = "HKLM"
+path = 'SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU'
+name = "NoAutoRebootWithLoggedOnUsers"
+dword = 1
+
+[[tweak]]
+id = "updates.no_driver_updates"
+category = "updates"
+risk = "medium"
+evidence = "functional"
+tags = ["gaming"]
+name = { fr = "Pilotes hors de Windows Update", en = "Keep drivers out of Windows Update" }
+description = { fr = "Windows Update n'installe plus de pilotes : il ne remplace plus ton pilote NVIDIA par une version plus ancienne.", en = "Windows Update stops installing drivers: it no longer replaces your NVIDIA driver with an older one." }
+note = { fr = "Tu devras mettre à jour tes pilotes toi-même (application NVIDIA, site du fabricant).", en = "You will have to update drivers yourself (NVIDIA app, manufacturer site)." }
+
+[[tweak.action]]
+kind = "registry"
+hive = "HKLM"
+path = 'SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate'
+name = "ExcludeWUDriversInQualityUpdate"
+dword = 1
+
+[[tweak]]
+id = "updates.no_p2p_delivery"
+category = "updates"
+risk = "safe"
+evidence = "functional"
+tags = ["privacy", "performance"]
+name = { fr = "Pas de partage de mises à jour en P2P", en = "No peer-to-peer update sharing" }
+description = { fr = "Ton PC n'envoie plus de morceaux de mises à jour à d'autres PC : ta connexion montante reste libre.", en = "Your PC stops uploading update pieces to other PCs: your upload bandwidth stays free." }
+
+[[tweak.action]]
+kind = "registry"
+hive = "HKLM"
+path = 'SOFTWARE\Policies\Microsoft\Windows\DeliveryOptimization'
+name = "DODownloadMode"
+dword = 0

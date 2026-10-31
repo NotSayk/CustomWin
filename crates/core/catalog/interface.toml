@@ -1,0 +1,157 @@
+# Interface : barre des tâches, menu contextuel, Explorateur, animations.
+
+[[tweak]]
+id = "interface.widgets"
+category = "interface"
+risk = "safe"
+evidence = "functional"
+restart = "explorer"
+tags = ["clean", "minimal", "performance"]
+name = { fr = "Désactiver les Widgets", en = "Disable Widgets" }
+description = { fr = "Retire le panneau Widgets (météo, actualités) et son bouton de la barre des tâches. Il ne tourne plus en arrière-plan.", en = "Removes the Widgets board (weather, news) and its taskbar button. It no longer runs in the background." }
+
+[[tweak.action]]
+kind = "registry"
+hive = "HKLM"
+path = 'SOFTWARE\Policies\Microsoft\Dsh'
+name = "AllowNewsAndInterests"
+dword = 0
+
+[[tweak]]
+id = "interface.taskbar_left"
+category = "interface"
+risk = "safe"
+evidence = "functional"
+tags = []
+name = { fr = "Barre des tâches alignée à gauche", en = "Left-aligned taskbar" }
+description = { fr = "Place le bouton Démarrer et les icônes à gauche, comme sur Windows 10.", en = "Moves the Start button and icons to the left, like Windows 10." }
+
+[[tweak.action]]
+kind = "registry"
+hive = "HKCU"
+path = 'Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
+name = "TaskbarAl"
+dword = 0
+
+[[tweak]]
+id = "interface.classic_context_menu"
+category = "interface"
+risk = "safe"
+evidence = "functional"
+restart = "explorer"
+tags = ["clean"]
+name = { fr = "Menu contextuel classique", en = "Classic context menu" }
+description = { fr = "Le clic droit affiche directement le menu complet, sans passer par « Afficher plus d'options ».", en = "Right-click shows the full menu directly, without going through \"Show more options\"." }
+
+[[tweak.action]]
+kind = "registry"
+hive = "HKCU"
+path = 'Software\Classes\CLSID\{86ca1aa0-34aa-4e8b-a509-50c905bae2a2}\InprocServer32'
+name = ""
+string = ""
+
+[[tweak]]
+id = "interface.search_icon_only"
+category = "interface"
+risk = "safe"
+evidence = "functional"
+tags = ["clean", "minimal"]
+name = { fr = "Recherche en simple icône", en = "Search as an icon only" }
+description = { fr = "Remplace la grande zone de recherche de la barre des tâches par une simple icône.", en = "Replaces the large taskbar search box with a plain icon." }
+
+[[tweak.action]]
+kind = "registry"
+hive = "HKCU"
+path = 'Software\Microsoft\Windows\CurrentVersion\Search'
+name = "SearchboxTaskbarMode"
+dword = 1
+
+[[tweak]]
+id = "interface.hide_task_view"
+category = "interface"
+risk = "safe"
+evidence = "functional"
+tags = ["clean", "minimal"]
+name = { fr = "Masquer le bouton Vue des tâches", en = "Hide the Task View button" }
+description = { fr = "Retire le bouton Vue des tâches de la barre des tâches (Win + Tab fonctionne toujours).", en = "Removes the Task View button from the taskbar (Win + Tab still works)." }
+
+[[tweak.action]]
+kind = "registry"
+hive = "HKCU"
+path = 'Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
+name = "ShowTaskViewButton"
+dword = 0
+
+[[tweak]]
+id = "interface.end_task"
+category = "interface"
+risk = "safe"
+evidence = "functional"
+tags = ["gaming"]
+name = { fr = "« Fin de tâche » dans la barre des tâches", en = "\"End task\" in the taskbar" }
+description = { fr = "Ajoute « Fin de tâche » au clic droit sur une appli de la barre des tâches : pratique pour tuer un jeu figé.", en = "Adds \"End task\" when right-clicking a taskbar app: handy to kill a frozen game." }
+
+[[tweak.action]]
+kind = "registry"
+hive = "HKCU"
+path = 'Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced\TaskbarDeveloperSettings'
+name = "TaskbarEndTask"
+dword = 1
+
+[[tweak]]
+id = "interface.reduce_animations"
+category = "interface"
+risk = "safe"
+evidence = "functional"
+tags = ["performance", "minimal"]
+name = { fr = "Réduire les animations", en = "Reduce animations" }
+description = { fr = "Coupe les animations de l'interface et de réduction/agrandissement des fenêtres : Windows paraît plus réactif.", en = "Turns off interface and window minimise/maximise animations: Windows feels snappier." }
+
+[[tweak.action]]
+kind = "system_parameter"
+param = "client_area_animation"
+value = false
+
+[[tweak.action]]
+kind = "system_parameter"
+param = "window_animation"
+value = false
+
+[[tweak.action]]
+kind = "registry"
+hive = "HKCU"
+path = 'Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
+name = "TaskbarAnimations"
+dword = 0
+
+[[tweak]]
+id = "explorer.show_extensions"
+category = "explorer"
+risk = "safe"
+evidence = "functional"
+tags = ["clean"]
+name = { fr = "Afficher les extensions de fichiers", en = "Show file extensions" }
+description = { fr = "Affiche « .exe », « .pdf »… dans l'Explorateur : plus clair, et plus sûr face aux fichiers piégés.", en = "Shows \".exe\", \".pdf\"… in File Explorer: clearer, and safer against disguised files." }
+
+[[tweak.action]]
+kind = "registry"
+hive = "HKCU"
+path = 'Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
+name = "HideFileExt"
+dword = 0
+
+[[tweak]]
+id = "explorer.open_this_pc"
+category = "explorer"
+risk = "safe"
+evidence = "functional"
+tags = []
+name = { fr = "Ouvrir l'Explorateur sur « Ce PC »", en = "Open File Explorer on \"This PC\"" }
+description = { fr = "L'Explorateur s'ouvre sur tes disques au lieu de l'Accueil.", en = "File Explorer opens on your drives instead of Home." }
+
+[[tweak.action]]
+kind = "registry"
+hive = "HKCU"
+path = 'Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
+name = "LaunchTo"
+dword = 1
